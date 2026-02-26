@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('后台')}"></head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container">
+  <div class="d-flex align-items-center mb-5">
+    <h2 class="mb-0 fw-bold"><i class="bi bi-speedometer2 text-primary me-2"></i>后台管理</h2>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+        <a th:href="@{/admin/articles}" class="card shadow-sm h-100 border-0 text-decoration-none text-dark card-hover">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-journal-text text-primary display-4 mb-3 d-block"></i>
+                <h5 class="fw-bold mb-0">文章管理</h5>
+                <p class="text-muted small mt-2 mb-0">发布、编辑及管理所有文章</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a th:href="@{/admin/comments}" class="card shadow-sm h-100 border-0 text-decoration-none text-dark card-hover">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-chat-dots text-success display-4 mb-3 d-block"></i>
+                <h5 class="fw-bold mb-0">评论审核</h5>
+                <p class="text-muted small mt-2 mb-0">审核及管理用户评论</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3" th:if="${#authentication.name == 'admin'}">
+        <a th:href="@{/admin/users}" class="card shadow-sm h-100 border-0 text-decoration-none text-dark card-hover">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-people text-warning display-4 mb-3 d-block"></i>
+                <h5 class="fw-bold mb-0">用户管理</h5>
+                <p class="text-muted small mt-2 mb-0">管理注册用户及权限（仅超管）</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a th:href="@{/admin/stats}" class="card shadow-sm h-100 border-0 text-decoration-none text-dark card-hover">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-bar-chart text-info display-4 mb-3 d-block"></i>
+                <h5 class="fw-bold mb-0">系统统计</h5>
+                <p class="text-muted small mt-2 mb-0">查看系统运行状态及数据监控</p>
+            </div>
+        </a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

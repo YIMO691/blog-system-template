@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head(${article.title})}"></head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container">
+  <h1 class="mb-2" th:text="${article.title}">title</h1>
+  <div class="text-muted mb-4 d-flex align-items-center">
+    <span th:if="${article.author != null}" th:text="'作者: ' + ${article.author.nickname ?: article.author.username} + ' (ID: ' + ${article.author.id} + ')'"></span>
+    <span class="ms-2" th:if="${article.createdAt != null}" 
+          th:text="${#temporals.format(article.createdAt, 'yyyy-MM-dd HH:mm', 'GMT+8')}"></span>
+    <span class="ms-2" th:if="${article.category != null}" th:text="${article.category.name}"></span>
+    <span th:if="${article.category == null}" class="text-muted ms-2">未分类</span>
+    
+    <span class="ms-3"><i class="bi bi-eye"></i> <span th:text="${article.views}">0</span></span>
+    
+    <form th:action="@{/articles/{id}/like(id=${article.id})}" method="post" class="d-inline ms-2">
+      <button type="submit" class="btn btn-sm" th:classappend="${likedByCurrentUser} ? 'btn-primary' : 'btn-outline-primary'">
+        <i class="bi" th:classappend="${likedByCurrentUser} ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'"></i> 
+        <span th:text="${article.likes}">0</span>
+      </button>
+    </form>
+
+    <!-- Edit/Delete buttons for Author or Admin -->
+    <div class="ms-auto" th:if="${#authorization.expression('isAuthenticated()')}">
+      <!-- Edit: Only Author -->
+      <a class="btn btn-outline-primary btn-sm" 
+         th:if="${article.author != null and article.author.username == #authentication.name}"
+         th:href="@{/articles/editor/{id}(id=${article.id})}">编辑</a>
+      
+      <!-- Delete: Author or Admin -->
+      <form th:if="${(article.author != null and article.author.username == #authentication.name) or #authorization.expression('hasRole(''ADMIN'')')}"
+            th:action="@{/articles/{id}/delete(id=${article.id})}" method="post" class="d-inline ms-1"
+            onsubmit="return confirm('确定要删除这篇文章吗？')">
+        <button type="submit" class="btn btn-outline-danger btn-sm">删除</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mb-5" th:utext="${article.content}"></div>
+
+  <div class="mb-5" th:if="${!article.tags.isEmpty()}">
+    <i class="bi bi-tags-fill text-muted me-2"></i>
+    <span th:each="tag : ${article.tags}" class="badge bg-light text-secondary border me-2 fs-6 fw-normal" th:text="${tag.name}">Tag</span>
+  </div>
+
+  <hr/>
+  <h4 class="mb-3">评论</h4>
+
+  <div th:if="${comments.size() == 0}" class="text-muted mb-3">暂无评论</div>
+
+  <!-- Comments Tree -->
+  <div th:replace="~{fragments/comment-tree :: list(${comments})}"></div>
+
+  <!-- Main comment form -->
+  <div class="card mt-4" th:if="${#authorization.expression('isAuthenticated()')}">
+    <div class="card-body">
+      <h5 class="card-title">发表评论</h5>
+      <form th:action="@{/articles/{slug}/comments(slug=${article.slug})}"
+            th:object="${commentForm}" method="post">
+        <div class="mb-3 text-muted small">
+          您将以登录身份发表评论。
+        </div>
+        <div class="mb-2">
+          <label class="form-label">内容</label>
+          <textarea class="form-control" rows="4" th:field="*{content}"></textarea>
+          <div class="text-danger small" th:errors="*{content}"></div>
+        </div>
+        <button class="btn btn-primary" type="submit">提交</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="alert alert-info" th:if="${#authorization.expression('isAnonymous()')}">
+    请先 <a th:href="@{/auth/login}">登录</a> 后再发表评论。
+  </div>
+</div>
+</body>
+</html>

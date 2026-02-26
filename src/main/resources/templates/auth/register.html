@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('注册')}"></head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container" style="max-width: 520px;">
+  <h2 class="mb-3">注册</h2>
+
+  <form th:action="@{/auth/register}" th:object="${form}" method="post">
+    <div class="mb-3">
+      <label class="form-label">用户名</label>
+      <input class="form-control" th:field="*{username}" required>
+      <div class="text-danger small" th:errors="*{username}"></div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">密码</label>
+      <div class="input-group">
+        <input class="form-control" type="password" th:field="*{password}" id="password" required>
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password', this)">
+          <i class="bi bi-eye"></i> 显示
+        </button>
+      </div>
+      <div class="text-danger small" th:errors="*{password}"></div>
+    </div>
+    
+    <div class="mb-3">
+      <label class="form-label">邮箱 / 手机号码</label>
+      <input class="form-control" th:field="*{contact}" placeholder="请输入邮箱或11位手机号码" required>
+      <div class="text-danger small" th:errors="*{contact}"></div>
+    </div>
+
+    <button class="btn btn-success w-100" type="submit">注册</button>
+  </form>
+</div>
+
+<script>
+function togglePassword(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (input.type === "password") {
+    input.type = "text";
+    btn.innerHTML = '<i class="bi bi-eye-slash"></i> 隐藏';
+  } else {
+    input.type = "password";
+    btn.innerHTML = '<i class="bi bi-eye"></i> 显示';
+  }
+}
+</script>
+</body>
+</html>

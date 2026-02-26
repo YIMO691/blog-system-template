@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('文章列表')}"></head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="mb-0 fw-bold"><i class="bi bi-list-ul text-primary me-2"></i>文章列表</h2>
+    <div th:if="${keyword != null}">
+        <span class="text-muted me-2">搜索结果：</span>
+        <span class="badge bg-primary rounded-pill px-3 py-2" th:text="${keyword}"></span>
+    </div>
+  </div>
+
+  <div th:if="${page.totalElements == 0}" class="alert alert-light text-center py-5 border">
+    <i class="bi bi-search fs-1 d-block mb-3 text-muted"></i>
+    <span class="text-muted">没有找到相关文章</span>
+  </div>
+
+  <div th:if="${groupedArticles != null}">
+    <div th:each="entry : ${groupedArticles}" class="mb-5">
+        <h4 class="fw-bold mb-3 border-start border-4 border-primary ps-3" th:text="${entry.key}">Category Name</h4>
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4" th:each="a : ${entry.value}">
+              <div class="card h-100 shadow-sm border-0">
+                <div class="card-body d-flex flex-column">
+                  <h5 class="card-title fw-bold">
+                    <a th:href="@{/articles/{slug}(slug=${a.slug})}" class="text-decoration-none text-dark stretched-link" th:text="${a.title}">Title</a>
+                  </h5>
+                  <p class="card-text text-muted text-truncate flex-grow-1" th:text="${#strings.abbreviate(a.content, 100)}">Content preview...</p>
+                  <div class="mb-2" th:if="${!a.tags.isEmpty()}">
+                    <i class="bi bi-tags-fill text-muted me-1 small"></i>
+                    <span th:each="tag : ${a.tags}" class="badge bg-light text-secondary border me-1 fw-normal" th:text="${tag.name}">Tag</span>
+                  </div>
+                  <div class="mt-auto pt-3 border-top d-flex justify-content-between text-muted small">
+                    <span><i class="bi bi-person me-1"></i><span th:text="${a.author.nickname ?: a.author.username}">Author</span></span>
+                    <span><i class="bi bi-calendar3 me-1"></i><span th:text="${#temporals.format(a.createdAt, 'MM-dd')}">Date</span></span>
+                  </div>
+                  <div class="mt-2 d-flex justify-content-between text-muted small">
+                     <span><i class="bi bi-eye me-1"></i><span th:text="${a.views}">0</span></span>
+                     <span><i class="bi bi-hand-thumbs-up me-1"></i><span th:text="${a.likes}">0</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <div th:if="${groupedArticles == null}" class="row g-4">
+    <div class="col-md-6 col-lg-4" th:each="a : ${page.content}">
+      <div class="card h-100 shadow-sm border-0">
+        <div class="card-body d-flex flex-column">
+          <div class="mb-2">
+            <span class="badge bg-info text-dark rounded-pill" th:if="${a.category != null}" th:text="${a.category.name}">分类</span>
+            <span class="badge bg-secondary rounded-pill" th:unless="${a.category != null}">未分类</span>
+          </div>
+          <h5 class="card-title fw-bold">
+            <a th:href="@{/articles/{slug}(slug=${a.slug})}" class="text-decoration-none text-dark stretched-link" th:text="${a.title}">Title</a>
+          </h5>
+          <p class="card-text text-muted text-truncate flex-grow-1" th:text="${#strings.abbreviate(a.content, 100)}">Content preview...</p>
+          <div class="mb-2" th:if="${!a.tags.isEmpty()}">
+            <i class="bi bi-tags-fill text-muted me-1 small"></i>
+            <span th:each="tag : ${a.tags}" class="badge bg-light text-secondary border me-1 fw-normal" th:text="${tag.name}">Tag</span>
+          </div>
+          <div class="mt-auto pt-3 border-top d-flex justify-content-between text-muted small">
+            <span><i class="bi bi-person me-1"></i><span th:text="${a.author.nickname ?: a.author.username}">Author</span></span>
+            <span><i class="bi bi-calendar3 me-1"></i><span th:text="${#temporals.format(a.createdAt, 'MM-dd')}">Date</span></span>
+          </div>
+          <div class="mt-2 d-flex justify-content-between text-muted small">
+             <span><i class="bi bi-eye me-1"></i><span th:text="${a.views}">0</span></span>
+             <span><i class="bi bi-hand-thumbs-up me-1"></i><span th:text="${a.likes}">0</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-5 d-flex justify-content-center gap-2" th:if="${page.totalPages > 1}">
+    <a class="btn btn-outline-primary px-4 rounded-pill"
+       th:if="${page.number > 0}"
+       th:href="@{/articles(page=${page.number - 1}, keyword=${keyword != null ? keyword : ''})}"><i class="bi bi-arrow-left me-1"></i>上一页</a>
+    <span class="btn btn-light disabled rounded-pill px-3 border" th:text="${page.number + 1} + ' / ' + ${page.totalPages}"></span>
+    <a class="btn btn-outline-primary px-4 rounded-pill"
+       th:if="${page.number + 1 lt page.totalPages}"
+       th:href="@{/articles(page=${page.number + 1}, keyword=${keyword != null ? keyword : ''})}">下一页<i class="bi bi-arrow-right ms-1"></i></a>
+  </div>
+</div>
+</body>
+</html>
