@@ -64,6 +64,10 @@ public class ArticleController {
     if (model.getAttribute("keyword") == null) {
         model.addAttribute("keyword", "");
     }
+    
+    // 加载所有分类，用于侧边栏展示
+    model.addAttribute("allCategories", taxonomyService.listCategories());
+    model.addAttribute("currentCategoryId", category);
 
     // Only group if no specific filter is applied (or keep grouping but maybe less relevant)
     // For now, let's keep grouping logic but maybe we only want to group when showing ALL articles.
@@ -85,6 +89,7 @@ public class ArticleController {
   public String search(@RequestParam String keyword, @RequestParam(defaultValue = "0") int page, Model model) {
     model.addAttribute("keyword", keyword);
     model.addAttribute("page", articleService.searchPublished(keyword, page, 10));
+    model.addAttribute("allCategories", taxonomyService.listCategories());
     return "article/list";
   }
 

@@ -19,6 +19,7 @@ public class ProfileController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.example.blog.service.NotificationService notificationService;
+    private final com.example.blog.service.EmailCodeService emailCodeService;
 
     private final com.example.blog.repository.ArticleLikeRepository articleLikeRepository;
     private final com.example.blog.repository.CommentLikeRepository commentLikeRepository;
@@ -51,6 +52,49 @@ public class ProfileController {
         current.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(current);
         return "redirect:/profile?success=password";
+    }
+
+    @PostMapping("/update-email")
+    public String updateEmail(@RequestParam String newEmail, @RequestParam String code) {
+        User current = userService.getCurrentUserOrThrow();
+        if (newEmail == null || newEmail.isBlank()) {
+            return "redirect:/profile?error=email_blank";
+        }
+        if (newEmail.equalsIgnoreCase(current.getEmail() != null ? current.getEmail() : "")) {
+            return "redirect:/profile?error=email_same";
+        }
+        if (userRepository.existsByEmail(newEmail)) {
+            return "redirect:/profile?error=email_exists";
+        }
+        if (code == null || code.isBlank() || !emailCodeService.verify(newEmail, code)) {
+            return "redirect:/profile?error=email_code_invalid";
+        }
+        current.setEmail(newEmail);
+        current.setEmailVerified(true);
+        userRepository.save(current);
+        return "redirect:/profile?success=email";
+    }
+
+    @PostMapping("/update-phone")
+    public String updatePhone(@RequestParam(required = false) String phone) {
+        User current = userService.getCurrentUserOrThrow();
+        if (phone == null || phone.isBlank()) {
+            current.setPhone(null);
+            userRepository.save(current);
+            return "redirect:/profile?success=phone";
+        }
+        if (!phone.matches("\\d{11}")) {
+            return "redirect:/profile?error=phone_format";
+        }
+        if (phone.equals(current.getPhone() != null ? current.getPhone() : "")) {
+            return "redirect:/profile?error=phone_same";
+        }
+        if (userRepository.existsByPhone(phone)) {
+            return "redirect:/profile?error=phone_exists";
+        }
+        current.setPhone(phone);
+        userRepository.save(current);
+        return "redirect:/profile?success=phone";
     }
 
     @PostMapping("/delete-account")

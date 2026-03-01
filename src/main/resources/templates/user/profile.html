@@ -12,18 +12,27 @@
     </span>
   </div>
 
-  <div th:if="${param.success}" class="alert alert-success shadow-sm alert-dismissible fade show">
+  <div th:if="${param.success != null}" class="alert alert-success shadow-sm alert-dismissible fade show">
     <i class="bi bi-check-circle-fill me-2"></i>
-    <span th:if="${param.success == 'nickname'}">昵称修改成功！</span>
-    <span th:if="${param.success == 'password'}">密码修改成功！</span>
+    <span th:if="${param.success.contains('nickname')}">昵称修改成功！</span>
+    <span th:if="${param.success.contains('password')}">密码修改成功！</span>
+    <span th:if="${param.success.contains('email')}">邮箱更新成功！</span>
+    <span th:if="${param.success.contains('phone')}">手机号更新成功！</span>
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
   
-  <div th:if="${param.error}" class="alert alert-danger shadow-sm alert-dismissible fade show">
+  <div th:if="${param.error != null}" class="alert alert-danger shadow-sm alert-dismissible fade show">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-    <span th:if="${param.error == 'wrong_password'}">原密码错误！</span>
-    <span th:if="${param.error == 'same_password'}">新密码不能与旧密码相同！</span>
-    <span th:if="${param.error == 'cannot_delete_super_admin'}">超级管理员账号不能注销！</span>
+    <span th:if="${param.error.contains('wrong_password')}">原密码错误！</span>
+    <span th:if="${param.error.contains('same_password')}">新密码不能与旧密码相同！</span>
+    <span th:if="${param.error.contains('cannot_delete_super_admin')}">超级管理员账号不能注销！</span>
+    <span th:if="${param.error.contains('email_blank')}">邮箱不能为空！</span>
+    <span th:if="${param.error.contains('email_same')}">新邮箱不能与当前邮箱相同！</span>
+    <span th:if="${param.error.contains('email_exists')}">该邮箱已被绑定！</span>
+    <span th:if="${param.error.contains('email_code_invalid')}">邮箱验证码无效或已过期！</span>
+    <span th:if="${param.error.contains('phone_format')}">手机号需为11位数字！</span>
+    <span th:if="${param.error.contains('phone_same')}">新手机号不能与当前相同！</span>
+    <span th:if="${param.error.contains('phone_exists')}">该手机号已被绑定！</span>
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 
@@ -63,16 +72,74 @@
             <i class="bi bi-shield-lock text-warning me-2"></i>安全设置
         </div>
         <div class="card-body">
-          <form th:action="@{/profile/update-password}" method="post">
+          <form th:action="@{/profile/update-password}" method="post" id="passwordForm">
             <div class="mb-3">
               <label class="form-label">原密码</label>
-              <input type="password" name="oldPassword" class="form-control" required>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
+                <input type="password" name="oldPassword" id="oldPassword" class="form-control" required>
+                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('oldPassword', this)"><i class="bi bi-eye"></i></button>
+              </div>
             </div>
             <div class="mb-3">
               <label class="form-label">新密码</label>
-              <input type="password" name="newPassword" class="form-control" required>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-shield-lock"></i></span>
+                <input type="password" name="newPassword" id="newPassword" class="form-control" required>
+                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('newPassword', this)"><i class="bi bi-eye"></i></button>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">确认新密码</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-shield-check"></i></span>
+                <input type="password" id="confirmPassword" class="form-control" required>
+                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPassword', this)"><i class="bi bi-eye"></i></button>
+              </div>
             </div>
             <button class="btn btn-warning w-100 text-white fw-bold" type="submit"><i class="bi bi-key me-2"></i>修改密码</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100 border-0">
+        <div class="card-header bg-white py-3 fw-bold border-bottom">
+            <i class="bi bi-envelope-check text-primary me-2"></i>联系方式
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase">当前邮箱</label>
+            <div>
+              <span class="fw-bold" th:text="${user.email != null ? user.email : '未绑定'}"></span>
+              <span class="badge bg-success ms-2" th:if="${user.emailVerified}"><i class="bi bi-check2-circle me-1"></i>已验证</span>
+            </div>
+          </div>
+          <form th:action="@{/profile/update-email}" method="post" class="mb-4" id="emailForm">
+            <label class="form-label">修改邮箱</label>
+            <div class="input-group mb-2">
+              <input class="form-control" name="newEmail" id="newEmailInput" placeholder="输入新邮箱">
+              <button class="btn btn-outline-primary" type="button" id="sendEmailCodeBtn" disabled>发送验证码</button>
+            </div>
+            <div class="input-group mb-2">
+              <span class="input-group-text bg-light"><i class="bi bi-key"></i></span>
+              <input class="form-control" name="code" placeholder="输入6位验证码">
+            </div>
+            <button class="btn btn-primary w-100" type="submit"><i class="bi bi-save me-1"></i>保存邮箱</button>
+          </form>
+
+          <div class="mb-2">
+            <label class="form-label text-muted small text-uppercase">当前手机号</label>
+            <div class="fw-bold" th:text="${user.phone != null ? user.phone : '未绑定'}"></div>
+          </div>
+          <form th:action="@{/profile/update-phone}" method="post" id="phoneForm">
+            <label class="form-label">修改手机号（可留空解除绑定）</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light"><i class="bi bi-phone"></i></span>
+              <input class="form-control" name="phone" placeholder="11位手机号，可留空解除绑定">
+              <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-save me-1"></i>保存手机</button>
+            </div>
           </form>
         </div>
       </div>
@@ -93,5 +160,93 @@
     </div>
   </div>
 </div>
+<script th:inline="javascript">
+function isEmail(v){return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);}
+const emailInput = document.getElementById('newEmailInput');
+const sendBtn = document.getElementById('sendEmailCodeBtn');
+const phoneForm = document.getElementById('phoneForm');
+const emailForm = document.getElementById('emailForm');
+const currentEmail = /*[[${user.email}]]*/ null;
+const currentPhone = /*[[${user.phone}]]*/ null;
+function togglePassword(id, btn){
+  const input = document.getElementById(id);
+  if (!input) return;
+  if (input.type === 'password'){
+    input.type = 'text';
+    btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+  } else {
+    input.type = 'password';
+    btn.innerHTML = '<i class="bi bi-eye"></i>';
+  }
+}
+function updateSendBtn(){
+  const v = emailInput.value.trim();
+  sendBtn.disabled = !isEmail(v);
+}
+if (emailInput && sendBtn){
+  emailInput.addEventListener('input', updateSendBtn);
+  updateSendBtn();
+  sendBtn.addEventListener('click', async function(){
+    const v = emailInput.value.trim();
+    if(!isEmail(v)) return;
+    if (currentEmail && v.toLowerCase() === String(currentEmail).toLowerCase()){
+      alert('新邮箱不能与当前邮箱相同');
+      return;
+    }
+    const fd = new FormData();
+    fd.append('email', v);
+    const token = document.querySelector('meta[name=\"_csrf\"]').getAttribute('content');
+    const headerName = document.querySelector('meta[name=\"_csrf_header\"]').getAttribute('content');
+    const headers = {};
+    if (token && headerName) headers[headerName] = token;
+    sendBtn.disabled = true;
+    const resp = await fetch('/auth/email-code', { method: 'POST', headers, body: fd });
+    try {
+      const data = await resp.json();
+      if (!data.ok) {
+        alert('发送失败：' + (data.error || ''));
+        sendBtn.disabled = false;
+        return;
+      }
+    } catch(e){ sendBtn.disabled = false; return; }
+    let sec = 60;
+    const text0 = '发送验证码';
+    sendBtn.textContent = `重新发送(${sec})`;
+    const timer = setInterval(()=>{
+      sec--;
+      if (sec<=0){
+        clearInterval(timer);
+        sendBtn.textContent = text0;
+        updateSendBtn();
+        return;
+      }
+      sendBtn.textContent = `重新发送(${sec})`;
+    }, 1000);
+  });
+}
+if (phoneForm){
+  phoneForm.addEventListener('submit', function(e){
+    const input = phoneForm.querySelector('input[name="phone"]');
+    const pv = (input?.value || '').trim();
+    if (pv && currentPhone && pv === String(currentPhone)){
+      e.preventDefault();
+      alert('新手机号不能与当前相同');
+      return false;
+    }
+  });
+}
+const passwordForm = document.getElementById('passwordForm');
+if (passwordForm){
+  passwordForm.addEventListener('submit', function(e){
+    const np = document.getElementById('newPassword')?.value || '';
+    const cp = document.getElementById('confirmPassword')?.value || '';
+    if (np !== cp){
+      e.preventDefault();
+      alert('两次输入的新密码不一致');
+      return false;
+    }
+  });
+}
+</script>
 </body>
 </html>

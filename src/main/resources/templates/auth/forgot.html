@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('找回密码')}"></head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container" style="max-width: 520px;">
+  <h2 class="mb-3">找回密码</h2>
+
+  <div class="alert alert-danger" th:if="${error}" th:text="${error}"></div>
+
+  <form th:action="@{/auth/reset-password}" method="post" id="resetForm">
+    <div class="mb-3">
+      <label class="form-label">邮箱</label>
+      <div class="input-group">
+        <input class="form-control" name="email" id="emailInput" th:value="${email}" placeholder="请输入注册邮箱" required>
+        <button class="btn btn-outline-primary" type="button" id="sendCodeBtn" disabled>获取邮箱验证码</button>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">邮箱验证码</label>
+      <input class="form-control" name="code" placeholder="请输入6位验证码" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">新密码</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light"><i class="bi bi-shield-lock"></i></span>
+        <input class="form-control" name="newPassword" id="newPassword" type="password" placeholder="请输入新密码" required>
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('newPassword', this)"><i class="bi bi-eye"></i></button>
+      </div>
+      <div class="form-text">新密码不能与旧密码相同</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">确认新密码</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light"><i class="bi bi-shield-check"></i></span>
+        <input class="form-control" id="confirmPassword" type="password" placeholder="请再次输入新密码" required>
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPassword', this)"><i class="bi bi-eye"></i></button>
+      </div>
+    </div>
+    <button class="btn btn-success w-100" type="submit">提交</button>
+  </form>
+  <div class="mt-3">
+    <a th:href="@{/auth/login}">返回登录</a>
+  </div>
+</div>
+
+<script>
+function isEmail(v){return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);}
+function togglePassword(id, btn){
+  const input = document.getElementById(id);
+  if (!input) return;
+  if (input.type === 'password'){
+    input.type = 'text';
+    btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+  } else {
+    input.type = 'password';
+    btn.innerHTML = '<i class="bi bi-eye"></i>';
+  }
+}
+const emailInput = document.getElementById('emailInput');
+const sendBtn = document.getElementById('sendCodeBtn');
+const resetForm = document.getElementById('resetForm');
+function updateUI(){
+  const v = emailInput.value.trim();
+  sendBtn.disabled = !isEmail(v);
+}
+emailInput.addEventListener('input', updateUI);
+updateUI();
+sendBtn.addEventListener('click', async function(){
+  const v = emailInput.value.trim();
+  if(!isEmail(v)) return;
+  const fd = new FormData();
+  fd.append('email', v);
+  const token = document.querySelector('meta[name=\"_csrf\"]')?.getAttribute('content');
+  const headerName = document.querySelector('meta[name=\"_csrf_header\"]')?.getAttribute('content');
+  const headers = {};
+  if (token && headerName) headers[headerName] = token;
+  sendBtn.disabled = true;
+  const resp = await fetch('/auth/email-code', { method: 'POST', headers, body: fd });
+  try {
+    const data = await resp.json();
+    if (!data.ok) {
+      alert('发送失败：' + (data.error || ''));
+      sendBtn.disabled = false;
+      return;
+    }
+  } catch(e){ sendBtn.disabled = false; return; }
+  let sec = 60;
+  sendBtn.textContent = `重新发送(${sec})`;
+  const timer = setInterval(()=>{
+    sec--;
+    if (sec<=0){
+      clearInterval(timer);
+      sendBtn.textContent = '获取邮箱验证码';
+      updateUI();
+      return;
+    }
+    sendBtn.textContent = `重新发送(${sec})`;
+  }, 1000);
+});
+resetForm.addEventListener('submit', function(e){
+  const np = document.getElementById('newPassword')?.value || '';
+  const cp = document.getElementById('confirmPassword')?.value || '';
+  if (np !== cp){
+    e.preventDefault();
+    alert('两次输入的新密码不一致');
+    return false;
+  }
+});
+</script>
+</body>
+</html>

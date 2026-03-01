@@ -45,6 +45,10 @@
        th:if="${page.number + 1 < page.totalPages}"
        th:href="@{/admin/articles(page=${page.number + 1})}">下一页</a>
   </div>
+
+  <div class="mt-4">
+    <a class="btn btn-outline-secondary rounded-pill px-4" th:href="@{/admin}"><i class="bi bi-arrow-left me-1"></i>返回仪表盘</a>
+  </div>
 </div>
 </body>
 </html>

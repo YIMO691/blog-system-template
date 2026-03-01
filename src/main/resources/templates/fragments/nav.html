@@ -32,41 +32,33 @@
             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" th:if="${notificationsUnread != null and notificationsUnread > 0}" th:text="${notificationsUnread}">0</span>
           </a>
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="noticeDropdown" style="min-width: 320px;">
-            <li th:if="${(notificationsRecent == null or notificationsRecent.isEmpty()) and (notificationsUnread == null or notificationsUnread == 0)}">
-              <span class="dropdown-item text-muted">暂无通知</span>
+            <li th:if="${notificationsUnread == null or notificationsUnread == 0}">
+              <span class="dropdown-item text-muted text-center py-3">暂无未读消息</span>
             </li>
-            <li class="px-3 py-2 text-muted small" th:if="${notificationsUnread != null and notificationsUnread > 0}">未读</li>
             <li th:each="n : ${notificationsRecent}" th:if="${!n.read}">
-              <div class="dropdown-item d-flex align-items-center">
-                <i class="bi me-2 bi-bell-fill text-danger"></i>
-                <div class="flex-grow-1">
-                  <div class="small fw-bold" th:text="${n.message}"></div>
-                  <div class="small text-muted" th:text="${#temporals.format(n.createdAt, 'yyyy-MM-dd HH:mm', 'GMT+8')}"></div>
+              <div class="dropdown-item d-flex align-items-center py-2 border-bottom">
+                <i class="bi me-2 bi-envelope-exclamation-fill text-primary fs-5"></i>
+                <div class="flex-grow-1" style="min-width: 0;">
+                  <div class="small fw-bold text-truncate" th:text="${n.message}"></div>
+                  <div class="d-flex justify-content-between align-items-center mt-1">
+                    <span class="small text-muted" style="font-size: 0.75rem;" th:text="${#temporals.format(n.createdAt, 'MM-dd HH:mm')}"></span>
+                  </div>
                 </div>
               </div>
             </li>
-            <li class="px-3 py-2 text-muted small">已读</li>
-            <li th:each="n : ${notificationsRecent}" th:if="${n.read}">
-              <div class="dropdown-item d-flex align-items-center">
-                <i class="bi me-2 bi-bell"></i>
-                <div class="flex-grow-1">
-                  <div class="small" th:text="${n.message}"></div>
-                  <div class="small text-muted" th:text="${#temporals.format(n.createdAt, 'yyyy-MM-dd HH:mm', 'GMT+8')}"></div>
-                </div>
-              </div>
-            </li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-              <form th:action="@{/notifications/read-all}" method="post" class="d-inline px-3">
-                <button class="btn btn-sm btn-outline-secondary" type="submit">全部标记为已读</button>
+            <li th:if="${notificationsUnread != null and notificationsUnread > 0}">
+              <form th:action="@{/notifications/read-all}" method="post" class="px-3 py-2 text-center bg-light">
+                <button class="btn btn-sm btn-link text-decoration-none" type="submit">全部标记为已读</button>
               </form>
             </li>
-            <li><hr class="dropdown-divider"></li>
-            <li th:if="${#authorization.expression('hasRole(''ADMIN'')')}">
-              <a class="dropdown-item" th:href="@{/admin/notifications}">查看全部</a>
-            </li>
-            <li th:if="${!#authorization.expression('hasRole(''ADMIN'')')}">
-              <a class="dropdown-item" th:href="@{/profile/notifications}">查看全部</a>
+            <li><hr class="dropdown-divider my-0"></li>
+            <li>
+              <a class="dropdown-item text-center small py-2 bg-light"
+                 th:if="${#authorization.expression('hasRole(''ADMIN'')')}"
+                 th:href="@{/admin/notifications}">查看所有通知</a>
+              <a class="dropdown-item text-center small py-2 bg-light"
+                 th:unless="${#authorization.expression('hasRole(''ADMIN'')')}"
+                 th:href="@{/profile/notifications}">查看所有通知</a>
             </li>
           </ul>
         </li>
