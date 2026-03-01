@@ -21,6 +21,7 @@ public class UserServiceImpl implements UserService {
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
+  private final com.example.blog.service.EmailCodeService emailCodeService;
 
   @Override
   public User register(RegisterRequest request) {
@@ -28,24 +29,21 @@ public class UserServiceImpl implements UserService {
       throw new BadRequestException("用户名已存在");
     }
     
-    String contact = request.contact();
-    String email = null;
-    String phone = null;
-
-    if (contact.contains("@")) {
-        email = contact;
-        if (userRepository.existsByEmail(email)) {
-            throw new BadRequestException("邮箱已被注册");
-        }
-    } else {
-        if (contact.matches("\\d{11}")) {
-            phone = contact;
-            if (userRepository.existsByPhone(phone)) {
-                throw new BadRequestException("手机号已被注册");
-            }
-        } else {
-            throw new BadRequestException("请输入有效的邮箱或11位手机号码");
-        }
+    String email = request.email();
+    if (userRepository.existsByEmail(email)) {
+      throw new BadRequestException("邮箱已被注册");
+    }
+    if (request.code() == null || request.code().isBlank() || !emailCodeService.verify(email, request.code())) {
+      throw new BadRequestException("邮箱验证码无效或已过期");
+    }
+    String phone = (request.phone() == null || request.phone().isBlank()) ? null : request.phone();
+    if (phone != null) {
+      if (!phone.matches("\\d{11}")) {
+        throw new BadRequestException("手机号需为11位数字");
+      }
+      if (userRepository.existsByPhone(phone)) {
+        throw new BadRequestException("手机号已被注册");
+      }
     }
 
     User u = User.builder()
@@ -71,5 +69,19 @@ public class UserServiceImpl implements UserService {
     }
     return userRepository.findByUsername(auth.getName())
         .orElseThrow(() -> new NotFoundException("用户不存在"));
+  }
+
+  @Override
+  public void resetPasswordByEmail(String email, String code, String newPassword) {
+    User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new NotFoundException("邮箱未注册"));
+    if (code == null || code.isBlank() || !emailCodeService.verify(email, code)) {
+      throw new BadRequestException("邮箱验证码无效或已过期");
+    }
+    if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+      throw new BadRequestException("新密码不能与旧密码相同");
+    }
+    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    userRepository.save(user);
   }
 }

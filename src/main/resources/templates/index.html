@@ -9,17 +9,17 @@
     <div class="col-lg-8">
       <div class="d-flex align-items-center mb-4">
         <h2 class="mb-0 fw-bold"><i class="bi bi-stars text-warning me-2"></i>最新文章</h2>
-        <span class="badge bg-light text-dark ms-3 rounded-pill border" th:text="${page.totalElements} + ' 篇'"></span>
+        <span class="badge bg-light text-dark ms-3 rounded-pill border" th:text="${articleTotal} + ' 篇'"></span>
       </div>
       
-      <div th:if="${page.totalElements == 0}" class="alert alert-info text-center py-5">
+      <div th:if="${articleTotal == 0}" class="alert alert-info text-center py-5">
         <i class="bi bi-inbox fs-1 d-block mb-3"></i>
         暂无文章，敬请期待！
       </div>
 
       <div class="list-group list-group-flush border rounded-3 overflow-hidden shadow-sm">
         <a class="list-group-item list-group-item-action p-4 border-bottom"
-           th:each="a : ${page.content}"
+           th:each="a : ${latest}"
            th:href="@{/articles/{slug}(slug=${a.slug})}">
           <div class="d-flex w-100 justify-content-between align-items-center mb-2">
             <h4 class="mb-1 fw-bold text-primary" th:text="${a.title}">title</h4>
@@ -41,14 +41,10 @@
         </a>
       </div>
 
-      <div class="mt-4 d-flex justify-content-center gap-2" th:if="${page.totalPages > 1}">
-        <a class="btn btn-outline-primary px-4 rounded-pill"
-           th:if="${page.number > 0}"
-           th:href="@{/(page=${page.number - 1})}"><i class="bi bi-arrow-left me-1"></i>上一页</a>
-        <span class="btn btn-light disabled rounded-pill px-3 border" th:text="${page.number + 1} + ' / ' + ${page.totalPages}"></span>
-        <a class="btn btn-outline-primary px-4 rounded-pill"
-           th:if="${page.number + 1 < page.totalPages}"
-           th:href="@{/(page=${page.number + 1})}">下一页<i class="bi bi-arrow-right ms-1"></i></a>
+      <div class="mt-4 d-flex justify-content-center" th:if="${articleTotal > 5}">
+        <a class="btn btn-outline-primary px-4 rounded-pill" th:href="@{/articles}">
+          更多文章<i class="bi bi-arrow-right ms-2"></i>
+        </a>
       </div>
     </div>
     
@@ -77,7 +73,7 @@
       <div class="card mb-4 shadow-sm border-0" th:if="${recentComments != null and !recentComments.isEmpty()}">
         <div class="card-header bg-white fw-bold py-3 border-bottom"><i class="bi bi-chat-quote me-2 text-success"></i>最新评论</div>
         <div class="list-group list-group-flush">
-          <a th:each="c : ${recentComments}" th:href="@{/articles/{slug}#comment-{id}(slug=${c.article.slug}, id=${c.id})}" class="list-group-item list-group-item-action py-3">
+          <a th:each="c : ${recentComments}" th:href="@{'/articles/' + ${c.article.slug} + '#comment-' + ${c.id}}" class="list-group-item list-group-item-action py-3">
             <div class="d-flex w-100 justify-content-between mb-1">
               <strong class="text-dark" th:text="${c.displayName}">User</strong>
               <small class="text-muted" th:text="${#temporals.format(c.createdAt, 'MM-dd')}">Date</small>

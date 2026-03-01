@@ -3,35 +3,93 @@
 <head th:replace="~{fragments/head :: head('我的通知')}"></head>
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
-<div class="container" style="max-width: 800px;">
-  <div class="d-flex align-items-center mb-4">
-    <h2 class="mb-0 fw-bold"><i class="bi bi-bell text-primary me-2"></i>我的通知</h2>
-  </div>
-  <div th:if="${notices == null or notices.isEmpty()}" class="alert alert-light">暂无通知</div>
-  <div class="list-group">
-    <div class="list-group-item d-flex align-items-center" th:each="n : ${notices}">
-      <div class="me-3">
-        <i class="bi" th:classappend="${n.read} ? 'bi-bell' : 'bi-bell-fill text-danger'"></i>
+<div class="container" style="max-width: 860px;">
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center">
+        <i class="bi bi-bell text-primary me-2"></i>
+        <span class="fw-bold">我的通知</span>
       </div>
-      <div class="flex-grow-1">
-        <div class="fw-bold" th:text="${n.message}"></div>
-        <div class="small text-muted" th:text="${#temporals.format(n.createdAt, 'yyyy-MM-dd HH:mm', 'GMT+8')}"></div>
-      </div>
-      <div class="ms-auto">
-        <a class="btn btn-outline-primary btn-sm me-2" th:if="${n.link != null}" th:href="${n.link}">查看</a>
-        <form th:action="@{/profile/notifications/{id}/read(id=${n.id})}" method="post" class="d-inline">
-          <button class="btn btn-outline-secondary btn-sm" type="submit" th:disabled="${n.read}">标记已读</button>
+      <div>
+        <form th:action="@{/notifications/delete-read}" method="post" class="d-inline">
+          <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash me-1"></i>删除已读</button>
+        </form>
+        <form th:action="@{/notifications/read-all}" method="post" class="d-inline ms-2">
+          <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-check2-all me-1"></i>全部已读</button>
         </form>
       </div>
     </div>
-  </div>
-  <div class="mt-3">
-    <form th:action="@{/notifications/delete-read}" method="post" class="d-inline">
-      <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash me-1"></i>删除已读通知</button>
-    </form>
-    <form th:action="@{/notifications/read-all}" method="post" class="d-inline ms-2">
-      <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-check2-all me-1"></i>全部标记已读</button>
-    </form>
+    <div class="card-body p-0">
+      <ul class="nav nav-pills px-3 pt-3" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#unread" type="button" role="tab">未读</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#read" type="button" role="tab">已读</button>
+        </li>
+      </ul>
+      <div class="tab-content p-3">
+        <div class="tab-pane fade show active" id="unread" role="tabpanel">
+          <div th:if="${notices == null or notices.isEmpty()}" class="alert alert-light m-0">暂无通知</div>
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex align-items-start" th:each="n : ${notices}" th:if="${!n.read}">
+              <div class="me-3">
+                <i class="bi bi-bell-fill text-danger fs-5"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="d-flex align-items-center mb-1">
+                  <span class="badge text-bg-light border me-2" th:switch="${n.type}">
+                    <span th:case="'COMMENT_PENDING'">评论待审</span>
+                    <span th:case="'COMMENT_APPROVED'">评论通过</span>
+                    <span th:case="'COMMENT_DELETED'">评论删除</span>
+                    <span th:case="'USER_MUTED'">禁言</span>
+                    <span th:case="'USER_UNMUTED'">解除禁言</span>
+                    <span th:case="'USER_ROLE_CHANGED'">角色变更</span>
+                    <span th:case="*">通知</span>
+                  </span>
+                  <span class="fw-bold" th:text="${n.message}"></span>
+                </div>
+                <div class="small text-muted" th:text="${#temporals.format(n.createdAt, 'yyyy-MM-dd HH:mm', 'GMT+8')}"></div>
+              </div>
+              <div class="ms-auto d-flex align-items-center">
+                <a class="btn btn-outline-primary btn-sm me-2" th:if="${n.link != null}" th:href="${n.link}">查看</a>
+                <form th:action="@{/profile/notifications/{id}/read(id=${n.id})}" method="post" class="d-inline">
+                  <button class="btn btn-primary btn-sm" type="submit">标记已读</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="read" role="tabpanel">
+          <div th:if="${notices == null or notices.isEmpty()}" class="alert alert-light m-0">暂无通知</div>
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex align-items-start" th:each="n : ${notices}" th:if="${n.read}">
+              <div class="me-3">
+                <i class="bi bi-bell text-muted fs-5"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="d-flex align-items-center mb-1">
+                  <span class="badge text-bg-light border me-2" th:switch="${n.type}">
+                    <span th:case="'COMMENT_PENDING'">评论待审</span>
+                    <span th:case="'COMMENT_APPROVED'">评论通过</span>
+                    <span th:case="'COMMENT_DELETED'">评论删除</span>
+                    <span th:case="'USER_MUTED'">禁言</span>
+                    <span th:case="'USER_UNMUTED'">解除禁言</span>
+                    <span th:case="'USER_ROLE_CHANGED'">角色变更</span>
+                    <span th:case="*">通知</span>
+                  </span>
+                  <span th:text="${n.message}"></span>
+                </div>
+                <div class="small text-muted" th:text="${#temporals.format(n.createdAt, 'yyyy-MM-dd HH:mm', 'GMT+8')}"></div>
+              </div>
+              <div class="ms-auto d-flex align-items-center">
+                <a class="btn btn-outline-secondary btn-sm" th:if="${n.link != null}" th:href="${n.link}">查看</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="mt-4">
     <a class="btn btn-outline-secondary rounded-pill px-4" th:href="@{/profile}"><i class="bi bi-arrow-left me-1"></i>返回个人中心</a>

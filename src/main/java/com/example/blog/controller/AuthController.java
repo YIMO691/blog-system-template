@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
   private final UserService userService;
+  private final com.example.blog.service.EmailCodeService emailCodeService;
 
   @GetMapping("/login")
   public String login() {
@@ -23,7 +24,7 @@ public class AuthController {
 
   @GetMapping("/register")
   public String registerForm(Model model) {
-    model.addAttribute("form", new RegisterRequest(null, null, null));
+    model.addAttribute("form", new RegisterRequest(null, null, null, null, null));
     return "auth/register";
   }
 
@@ -37,5 +38,40 @@ public class AuthController {
         return "auth/register";
     }
     return "redirect:/auth/login?registered";
+  }
+
+  @PostMapping("/email-code")
+  @ResponseBody
+  public java.util.Map<String,Object> sendEmailCode(@RequestParam String email) {
+    try {
+      emailCodeService.sendCode(email);
+      return java.util.Map.of("ok", true);
+    } catch (Exception e) {
+      return java.util.Map.of("ok", false, "error", e.getMessage());
+    }
+  }
+
+  @GetMapping("/forgot")
+  public String forgotForm() {
+    return "auth/forgot";
+  }
+
+  @PostMapping("/reset-password")
+  public String resetPassword(@RequestParam String email,
+                              @RequestParam String code,
+                              @RequestParam String newPassword,
+                              org.springframework.ui.Model model) {
+    try {
+      userService.resetPasswordByEmail(email, code, newPassword);
+    } catch (com.example.blog.exception.BadRequestException e) {
+      model.addAttribute("error", e.getMessage());
+      model.addAttribute("email", email);
+      return "auth/forgot";
+    } catch (com.example.blog.exception.NotFoundException e) {
+      model.addAttribute("error", e.getMessage());
+      model.addAttribute("email", email);
+      return "auth/forgot";
+    }
+    return "redirect:/auth/login?reset=success";
   }
 }

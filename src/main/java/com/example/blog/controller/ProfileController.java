@@ -45,6 +45,9 @@ public class ProfileController {
         if (!passwordEncoder.matches(oldPassword, current.getPasswordHash())) {
             return "redirect:/profile?error=wrong_password";
         }
+        if (passwordEncoder.matches(newPassword, current.getPasswordHash())) {
+            return "redirect:/profile?error=same_password";
+        }
         current.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(current);
         return "redirect:/profile?success=password";

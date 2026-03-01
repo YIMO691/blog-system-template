@@ -19,7 +19,10 @@ public class HomeController {
 
   @GetMapping("/")
   public String home(@RequestParam(defaultValue = "0") int page, Model model) {
-    model.addAttribute("page", articleService.listPublished(page, 6));
+    org.springframework.data.domain.Page<com.example.blog.entity.Article> latestPage =
+        articleService.listPublished(0, 5);
+    model.addAttribute("latest", latestPage.getContent());
+    model.addAttribute("articleTotal", latestPage.getTotalElements());
     model.addAttribute("recentComments", commentService.listRecent(6));
     model.addAttribute("categories", taxonomyService.listCategories());
     return "index";

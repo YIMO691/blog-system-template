@@ -24,6 +24,19 @@ spring:
         format_sql: true
   thymeleaf:
     cache: false
+  mail:
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:2054469475@qq.com}
+    password: ${MAIL_PASSWORD:yxxkfqdhqmqvcfdd}
+    protocol: ${MAIL_PROTOCOL:smtps}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+        debug: false
 
 logging:
   level:

@@ -4,34 +4,66 @@
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
 
-<div class="container" style="max-width: 520px;">
-  <h2 class="mb-3">注册</h2>
-
-  <form th:action="@{/auth/register}" th:object="${form}" method="post">
-    <div class="mb-3">
-      <label class="form-label">用户名</label>
-      <input class="form-control" th:field="*{username}" required>
-      <div class="text-danger small" th:errors="*{username}"></div>
+<div class="container" style="max-width: 620px;">
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white fw-bold py-3 d-flex align-items-center">
+      <i class="bi bi-person-plus text-primary me-2"></i>注册
     </div>
-    <div class="mb-3">
-      <label class="form-label">密码</label>
-      <div class="input-group">
-        <input class="form-control" type="password" th:field="*{password}" id="password" required>
-        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password', this)">
-          <i class="bi bi-eye"></i> 显示
-        </button>
+    <div class="card-body p-4">
+      <form th:action="@{/auth/register}" th:object="${form}" method="post">
+        <div class="mb-3">
+          <label class="form-label">用户名</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+            <input class="form-control" th:field="*{username}" placeholder="请输入用户名（3-50位）" required>
+          </div>
+          <div class="text-danger small" th:errors="*{username}"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">密码</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light"><i class="bi bi-shield-lock"></i></span>
+            <input class="form-control" type="password" th:field="*{password}" id="password" placeholder="至少6位" required>
+            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password', this)"><i class="bi bi-eye"></i></button>
+          </div>
+          <div class="text-danger small" th:errors="*{password}"></div>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">手机号码（可选）</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light"><i class="bi bi-phone"></i></span>
+              <input class="form-control" th:field="*{phone}" id="phoneInput" placeholder="11位手机号（可不填）">
+            </div>
+            <div class="text-danger small" th:errors="*{phone}"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">邮箱</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
+              <input class="form-control" th:field="*{email}" id="emailInput" placeholder="请输入邮箱" required>
+              <button class="btn btn-outline-primary" type="button" id="sendCodeBtn" disabled>获取验证码</button>
+            </div>
+            <div class="text-danger small" th:errors="*{email}"></div>
+          </div>
+        </div>
+
+        <div class="mb-3 mt-3" id="codeRow" style="display:none;">
+          <label class="form-label">邮箱验证码</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light"><i class="bi bi-key"></i></span>
+            <input class="form-control" th:field="*{code}" id="codeInput" placeholder="输入6位验证码">
+          </div>
+          <div class="text-danger small" th:errors="*{code}"></div>
+        </div>
+
+        <button class="btn btn-success w-100" type="submit"><i class="bi bi-check2-circle me-1"></i>注册</button>
+      </form>
+      <div class="d-flex justify-content-end mt-3">
+        <a class="small" th:href="@{/auth/login}"><i class="bi bi-box-arrow-in-right me-1"></i>已有账号？去登录</a>
       </div>
-      <div class="text-danger small" th:errors="*{password}"></div>
     </div>
-    
-    <div class="mb-3">
-      <label class="form-label">邮箱 / 手机号码</label>
-      <input class="form-control" th:field="*{contact}" placeholder="请输入邮箱或11位手机号码" required>
-      <div class="text-danger small" th:errors="*{contact}"></div>
-    </div>
-
-    <button class="btn btn-success w-100" type="submit">注册</button>
-  </form>
+  </div>
 </div>
 
 <script>
@@ -39,12 +71,58 @@ function togglePassword(inputId, btn) {
   const input = document.getElementById(inputId);
   if (input.type === "password") {
     input.type = "text";
-    btn.innerHTML = '<i class="bi bi-eye-slash"></i> 隐藏';
+    btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
   } else {
     input.type = "password";
-    btn.innerHTML = '<i class="bi bi-eye"></i> 显示';
+    btn.innerHTML = '<i class="bi bi-eye"></i>';
   }
 }
+
+const emailInput = document.getElementById('emailInput');
+const sendBtn = document.getElementById('sendCodeBtn');
+const codeRow = document.getElementById('codeRow');
+function isEmail(v){return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);}
+function updateUI(){
+  const v = emailInput.value.trim();
+  const email = isEmail(v);
+  codeRow.style.display = email ? 'block' : 'none';
+  sendBtn.disabled = !email;
+}
+emailInput.addEventListener('input', updateUI);
+updateUI();
+
+sendBtn.addEventListener('click', async function(){
+  const v = emailInput.value.trim();
+  if(!isEmail(v)) return;
+  const fd = new FormData();
+  fd.append('email', v);
+  const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+  const headerName = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+  const headers = {};
+  if (token && headerName) headers[headerName] = token;
+  sendBtn.disabled = true;
+  const resp = await fetch('/auth/email-code', { method: 'POST', headers, body: fd });
+  try {
+    const data = await resp.json();
+    if (!data.ok) {
+      alert('发送失败：' + (data.error || ''));
+      sendBtn.disabled = false;
+      return;
+    }
+  } catch(e){ sendBtn.disabled = false; return; }
+  let sec = 60;
+  sendBtn.textContent = `重新发送(${sec})`;
+  const timer = setInterval(()=>{
+    sec--;
+    if (sec<=0){
+      clearInterval(timer);
+      sendBtn.textContent = '获取邮箱验证码';
+      updateUI();
+      return;
+    }
+    sendBtn.textContent = `重新发送(${sec})`;
+  }, 1000);
+});
 </script>
 </body>
 </html>
