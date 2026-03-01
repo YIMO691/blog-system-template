@@ -18,6 +18,8 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
   private final JpaUserDetailsService userDetailsService;
+  private final com.example.blog.security.LoginSuccessHandler loginSuccessHandler;
+  private final com.example.blog.security.LoginFailureHandler loginFailureHandler;
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -37,11 +39,12 @@ public class SecurityConfig {
             )
 
             .formLogin(form -> form
-            .loginPage("/auth/login")
-            .loginProcessingUrl("/auth/login")
-            .defaultSuccessUrl("/", true)
-            .permitAll()
-        )
+                .loginPage("/auth/login")
+                .loginProcessingUrl("/auth/login")
+                .successHandler(loginSuccessHandler)
+                .failureHandler(loginFailureHandler)
+                .permitAll()
+            )
         .logout(logout -> logout
             .logoutUrl("/auth/logout")
             .logoutSuccessUrl("/")

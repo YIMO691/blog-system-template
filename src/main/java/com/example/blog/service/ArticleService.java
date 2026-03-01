@@ -21,4 +21,9 @@ public interface ArticleService {
   boolean isLikedByCurrentUser(Long id);
 
   java.util.List<Article> listDrafts(Long authorId);
+
+  org.springframework.data.domain.Page<Article> listPublishedSorted(String sort, int page, int size);
+  org.springframework.data.domain.Page<Article> listPublishedByCategorySorted(Long categoryId, String sort, int page, int size);
+  org.springframework.data.domain.Page<Article> listPublishedByTagSorted(String tagName, String sort, int page, int size);
+  org.springframework.data.domain.Page<Article> searchPublishedSorted(String keyword, String sort, int page, int size);
 }

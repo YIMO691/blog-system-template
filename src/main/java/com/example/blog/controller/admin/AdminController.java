@@ -20,6 +20,7 @@ public class AdminController {
   private final com.example.blog.repository.UserRepository userRepository;
   private final com.example.blog.service.UserService userService;
   private final com.example.blog.service.NotificationService notificationService;
+  private final com.example.blog.repository.TagRepository tagRepository;
 
   @GetMapping
   public String dashboard() {
@@ -82,7 +83,7 @@ public class AdminController {
   }
 
   @GetMapping("/stats")
-  public String stats(Model model) {
+  public String stats(Model model, @RequestParam(defaultValue = "7") int range) {
     // Article Stats
     model.addAttribute("articleCount", articleRepository.count());
     model.addAttribute("articlePublishedCount", articleRepository.countByPublishedTrue());
@@ -97,6 +98,65 @@ public class AdminController {
 
     // User Stats
     model.addAttribute("userCount", userRepository.count());
+
+    // Category Distribution
+    java.util.List<Object[]> catRows = articleRepository.countGroupedByCategory();
+    java.util.List<String> categoryNames = new java.util.ArrayList<>();
+    java.util.List<Long> categoryCounts = new java.util.ArrayList<>();
+    for (Object[] row : catRows) {
+      categoryNames.add(String.valueOf(row[0] == null ? "未分类" : row[0]));
+      categoryCounts.add(((Number) row[1]).longValue());
+    }
+    model.addAttribute("categoryNames", categoryNames);
+    model.addAttribute("categoryCounts", categoryCounts);
+
+    // Top 5 Articles by Views / Likes
+    var topViews = articleRepository.findTop5ByPublishedTrueOrderByViewsDesc();
+    var topLikes = articleRepository.findTop5ByPublishedTrueOrderByLikesDesc();
+    model.addAttribute("topViewsTitles", topViews.stream().map(com.example.blog.entity.Article::getTitle).toList());
+    model.addAttribute("topViewsValues", topViews.stream().map(a -> a.getViews()).toList());
+    model.addAttribute("topLikesTitles", topLikes.stream().map(com.example.blog.entity.Article::getTitle).toList());
+    model.addAttribute("topLikesValues", topLikes.stream().map(a -> a.getLikes()).toList());
+    // Top commented articles
+    var topCommentedRows = commentRepository.topCommentedArticles();
+    var topCommentedTitles = topCommentedRows.stream().limit(5).map(r -> String.valueOf(r[0])).toList();
+    var topCommentedCounts = topCommentedRows.stream().limit(5).map(r -> ((Number) r[1]).longValue()).toList();
+    model.addAttribute("topCommentedTitles", topCommentedTitles);
+    model.addAttribute("topCommentedCounts", topCommentedCounts);
+    // Tag Top10 usage
+    var tagUsageRows = tagRepository.countTagUsage();
+    var tagTopNames = tagUsageRows.stream().limit(10).map(r -> String.valueOf(r[0])).toList();
+    var tagTopCounts = tagUsageRows.stream().limit(10).map(r -> ((Number) r[1]).longValue()).toList();
+    model.addAttribute("tagTopNames", tagTopNames);
+    model.addAttribute("tagTopCounts", tagTopCounts);
+    // Recent 10 articles by views
+    var recentPage = articleRepository.findByPublishedTrueOrderByCreatedAtDesc(org.springframework.data.domain.PageRequest.of(0, 10));
+    var recentTitles = recentPage.getContent().stream().map(com.example.blog.entity.Article::getTitle).toList();
+    var recentViews = recentPage.getContent().stream().map(a -> a.getViews()).toList();
+    model.addAttribute("recentTitles", recentTitles);
+    model.addAttribute("recentViews", recentViews);
+
+    // Last N Days New Articles & Comments
+    int days = (range == 30) ? 30 : 7;
+    java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+    java.time.LocalDate today = java.time.LocalDate.now(zone);
+    java.util.List<String> lastDaysLabels = new java.util.ArrayList<>();
+    java.util.List<Long> lastDaysArticles = new java.util.ArrayList<>();
+    java.util.List<Long> lastDaysComments = new java.util.ArrayList<>();
+    for (int i = days - 1; i >= 0; i--) {
+      java.time.LocalDate d = today.minusDays(i);
+      java.time.Instant start = d.atStartOfDay(zone).toInstant();
+      java.time.Instant end = d.plusDays(1).atStartOfDay(zone).toInstant();
+      long ac = articleRepository.findByCreatedAtBetween(start, end).size();
+      long cc = commentRepository.findByCreatedAtBetween(start, end).size();
+      lastDaysLabels.add(d.toString());
+      lastDaysArticles.add(ac);
+      lastDaysComments.add(cc);
+    }
+    model.addAttribute("range", days);
+    model.addAttribute("last7DaysLabels", lastDaysLabels);
+    model.addAttribute("last7Articles", lastDaysArticles);
+    model.addAttribute("last7Comments", lastDaysComments);
 
     // System Info
     model.addAttribute("osName", System.getProperty("os.name"));

@@ -1,1 +1,95 @@
-/* optional custom styles */
+/* Global background */
+body {
+  background-color: #f4f6f9;
+}
+
+/* Sticky footer layout */
+html, body { height: 100%; }
+body { min-height: 100vh; display: flex; flex-direction: column; }
+.site-footer { margin-top: auto; }
+
+/* Card defaults */
+.card {
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+/* Article title emphasis */
+.card .card-title a {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #212529;
+  transition: color .15s ease;
+}
+.card .card-title a:hover {
+  color: #0d6efd !important;
+}
+
+.category-chip {
+  display: inline-block;
+  padding: .35rem .75rem;
+  border: 1px solid rgba(0,0,0,.08);
+  background-color: #fff;
+  color: #495057;
+  border-radius: 999px;
+  font-size: .85rem;
+  text-decoration: none;
+  transition: all .15s ease;
+}
+.category-chip:hover {
+  background-color: rgba(13,110,253,.08);
+  color: #0d6efd;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,.06);
+}
+
+.avatar-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  color: #495057;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: .85rem;
+}
+
+/* CTA large button */
+.btn-cta {
+  padding: 1rem 2.25rem;
+  font-weight: 700;
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(13, 110, 253, 0.25);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.btn-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(13, 110, 253, 0.35);
+}
+
+/* Article title emphasis */
+.article-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #212529;
+  transition: color .15s ease;
+}
+.article-title:hover {
+  color: #0d6efd;
+}
+/* Softer hover */
+.card.hover-card:hover,
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Optional: lighter list-group borders on cards */
+.list-group-item {
+  border-color: rgba(0, 0, 0, 0.05);
+}

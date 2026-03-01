@@ -22,12 +22,12 @@
            th:each="a : ${latest}"
            th:href="@{/articles/{slug}(slug=${a.slug})}">
           <div class="d-flex w-100 justify-content-between align-items-center mb-2">
-            <h4 class="mb-1 fw-bold text-primary" th:text="${a.title}">title</h4>
+            <h4 class="mb-1 article-title" th:text="${a.title}">title</h4>
             <span class="badge rounded-pill" 
                   th:classappend="${a.published} ? 'bg-success' : 'bg-warning text-dark'"
                   th:text="${a.published} ? '已发布' : '草稿'"></span>
           </div>
-          <p class="text-secondary small mb-3 text-truncate" th:text="${a.content}">Content preview...</p>
+          <p class="text-secondary small mb-3 text-truncate" th:text="${a.summary}">Content preview...</p>
           <div class="mb-2" th:if="${!a.tags.isEmpty()}">
             <i class="bi bi-tags-fill text-muted me-1 small"></i>
             <span th:each="tag : ${a.tags}" class="badge bg-light text-secondary border me-1 fw-normal" th:text="${tag.name}">Tag</span>
@@ -41,10 +41,12 @@
         </a>
       </div>
 
-      <div class="mt-4 d-flex justify-content-center" th:if="${articleTotal > 5}">
-        <a class="btn btn-outline-primary px-4 rounded-pill" th:href="@{/articles}">
-          更多文章<i class="bi bi-arrow-right ms-2"></i>
-        </a>
+      <div class="mt-4 d-flex justify-content-center" th:if="${articleTotal > 6}">
+        <div style="max-width: 460px; width: 100%;">
+          <a class="btn btn-primary btn-cta w-100" th:href="@{/articles}">
+            <i class="bi bi-collection me-2"></i>更多文章
+          </a>
+        </div>
       </div>
     </div>
     
@@ -58,15 +60,11 @@
 
       <div class="card mb-4 shadow-sm border-0">
         <div class="card-header bg-white fw-bold py-3 border-bottom"><i class="bi bi-folder2-open me-2 text-warning"></i>分类目录</div>
-        <div class="list-group list-group-flush">
-          <a th:each="c : ${categories}" th:href="@{/articles(category=${c.id})}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-            <span th:text="${c.name}">Category Name</span>
-            <span class="badge bg-light text-secondary rounded-pill border">Go</span>
-          </a>
-          <a th:href="@{/articles(category=-1)}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-            <span>未分类</span>
-            <span class="badge bg-light text-secondary rounded-pill border">Go</span>
-          </a>
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-2">
+            <a th:each="c : ${categories}" th:href="@{/articles(category=${c.id})}" class="category-chip" th:text="${c.name}">Category</a>
+            <a th:href="@{/articles(category=-1)}" class="category-chip">未分类</a>
+          </div>
         </div>
       </div>
 
@@ -74,9 +72,10 @@
         <div class="card-header bg-white fw-bold py-3 border-bottom"><i class="bi bi-chat-quote me-2 text-success"></i>最新评论</div>
         <div class="list-group list-group-flush">
           <a th:each="c : ${recentComments}" th:href="@{'/articles/' + ${c.article.slug} + '#comment-' + ${c.id}}" class="list-group-item list-group-item-action py-3">
-            <div class="d-flex w-100 justify-content-between mb-1">
-              <strong class="text-dark" th:text="${c.displayName}">User</strong>
-              <small class="text-muted" th:text="${#temporals.format(c.createdAt, 'MM-dd')}">Date</small>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <div class="avatar-sm" th:text="${#strings.substring(c.displayName,0,1)}">U</div>
+              <strong class="text-dark small" th:text="${c.displayName}">User</strong>
+              <small class="text-muted ms-auto" th:text="${#temporals.format(c.createdAt, 'MM-dd')}">Date</small>
             </div>
             <p class="mb-1 text-secondary text-truncate small" th:text="${c.content}">Content...</p>
             <small class="text-muted">评：<span th:text="${c.article.title}">Article Title</span></small>
@@ -86,5 +85,6 @@
     </div>
   </div>
 </div>
+<div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 </html>

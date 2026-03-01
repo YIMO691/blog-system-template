@@ -54,8 +54,9 @@
       <label class="form-label fw-bold">标签</label>
       <div class="input-group">
         <span class="input-group-text bg-light"><i class="bi bi-tags"></i></span>
-        <input class="form-control" name="tags" placeholder="输入标签，用英文逗号分隔（如：java, spring, boot）">
+        <input class="form-control" name="tags" id="tagsInput" placeholder="输入标签，用英文逗号分隔（如：java, spring, boot）">
       </div>
+      <div class="form-text" id="tagsHelp">最多 6 个标签，用英文逗号分隔。</div>
     </div>
 
     <div class="mb-3">
@@ -102,6 +103,35 @@
     const uploadBtn = document.getElementById('uploadBtn');
     const imageFile = document.getElementById('imageFile');
     const contentArea = document.querySelector('textarea[name="content"]');
+    const tagsInput = document.getElementById('tagsInput');
+    const tagsHelp = document.getElementById('tagsHelp');
+    const MAX_TAGS = 6;
+    function parseTags(v){
+      return (v || '').split(',').map(s => s.trim()).filter(s => s.length > 0);
+    }
+    function uniqueKeepOrder(arr){
+      const seen = new Set(); const out = [];
+      for (const s of arr){
+        const k = s.toLowerCase();
+        if (!seen.has(k)){ seen.add(k); out.push(s); }
+      }
+      return out;
+    }
+    function enforceTags(){
+      let tags = uniqueKeepOrder(parseTags(tagsInput.value));
+      if (tags.length > MAX_TAGS){
+        alert('最多可添加 6 个标签，已自动截断多余标签');
+        tags = tags.slice(0, MAX_TAGS);
+        tagsInput.value = tags.join(', ');
+      }
+      if (tagsHelp){
+        tagsHelp.textContent = `最多 6 个标签，已填写 ${tags.length}/${MAX_TAGS}`;
+      }
+    }
+    if (tagsInput){
+      tagsInput.addEventListener('input', enforceTags);
+      tagsInput.addEventListener('blur', enforceTags);
+    }
     uploadBtn.addEventListener('click', async function() {
       if (!imageFile.files || imageFile.files.length === 0) return;
       const fd = new FormData();
@@ -122,6 +152,44 @@
         alert('上传失败');
       }
     });
+</script>
+<div th:replace="~{fragments/footer :: footer}"></div>
+<script>
+  (function(){
+    const form = document.querySelector('form[action$="/articles/editor"]') || document.querySelector('form');
+    const inputs = [
+      document.querySelector('input[name="title"]'),
+      document.querySelector('select[name="categoryId"]'),
+      newCategoryInput?.querySelector('input[name="newCategory"]'),
+      document.querySelector('input[name="tags"]'),
+      document.querySelector('textarea[name="content"]'),
+      document.querySelector('input[name="published"]')
+    ].filter(Boolean);
+    let dirty = false;
+    let isSubmitting = false;
+    inputs.forEach(el => el.addEventListener('input', ()=> dirty = true));
+    inputs.forEach(el => el.addEventListener('change', ()=> dirty = true));
+    if (form){
+      form.addEventListener('submit', ()=> { isSubmitting = true; dirty = false; });
+    }
+    window.addEventListener('beforeunload', function (e) {
+      if (dirty && !isSubmitting) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+    document.querySelectorAll('a[href]').forEach(a => {
+      a.addEventListener('click', function(e){
+        const href = a.getAttribute('href') || '';
+        if (dirty && !isSubmitting && !href.startsWith('#')) {
+          const ok = confirm('当前内容尚未保存，确定要离开此页面吗？');
+          if (!ok) {
+            e.preventDefault();
+          }
+        }
+      });
+    });
+  })();
 </script>
 </body>
 </html>

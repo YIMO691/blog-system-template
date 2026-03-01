@@ -16,4 +16,15 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
   long countByApprovedTrue();
   long countByApprovedFalse();
+
+  @org.springframework.data.jpa.repository.Query("""
+      SELECT c.article.title, COUNT(c)
+      FROM Comment c
+      WHERE c.approved = true AND c.article IS NOT NULL AND c.article.published = true
+      GROUP BY c.article.title
+      ORDER BY COUNT(c) DESC
+      """)
+  java.util.List<Object[]> topCommentedArticles();
+
+  java.util.List<Comment> findByCreatedAtBetween(java.time.Instant start, java.time.Instant end);
 }

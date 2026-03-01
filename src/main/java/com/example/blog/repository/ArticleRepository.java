@@ -44,4 +44,12 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
 
   @org.springframework.data.jpa.repository.Query("SELECT SUM(a.likes) FROM Article a")
   Long sumLikes();
+
+  java.util.List<Article> findTop5ByPublishedTrueOrderByViewsDesc();
+  java.util.List<Article> findTop5ByPublishedTrueOrderByLikesDesc();
+
+  @org.springframework.data.jpa.repository.Query("SELECT COALESCE(c.name, '未分类') AS name, COUNT(a) FROM Article a LEFT JOIN a.category c GROUP BY c.name ORDER BY COUNT(a) DESC")
+  java.util.List<Object[]> countGroupedByCategory();
+
+  java.util.List<Article> findByCreatedAtBetween(java.time.Instant start, java.time.Instant end);
 }

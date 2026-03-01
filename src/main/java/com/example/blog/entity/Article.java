@@ -60,6 +60,9 @@ public class Article {
   @Column(nullable = false)
   private int likes = 0;
 
+  @Transient
+  private String summary;
+
   @PrePersist
   public void prePersist() {
     Instant now = Instant.now();

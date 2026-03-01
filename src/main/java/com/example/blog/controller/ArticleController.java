@@ -38,26 +38,27 @@ public class ArticleController {
   public String list(@RequestParam(defaultValue = "0") int page, 
                      @RequestParam(required = false) Long category,
                      @RequestParam(required = false) String tag,
+                     @RequestParam(defaultValue = "latest") String sort,
                      Model model) {
     org.springframework.data.domain.Page<Article> articles;
     String filterDesc = "";
 
     if (category != null) {
         if (category == -1) {
-            articles = articleService.listPublishedByCategory(null, page, 20);
+            articles = articleService.listPublishedByCategorySorted(null, sort, page, 20);
             filterDesc = "分类筛选";
-            model.addAttribute("keyword", "未分类");
+            model.addAttribute("filterLabel", "未分类");
         } else {
-            articles = articleService.listPublishedByCategory(category, page, 20);
+            articles = articleService.listPublishedByCategorySorted(category, sort, page, 20);
             filterDesc = "分类筛选";
-            model.addAttribute("keyword", "分类ID: " + category);
+            model.addAttribute("filterLabel", "分类ID: " + category);
         }
     } else if (tag != null && !tag.isBlank()) {
-        articles = articleService.listPublishedByTag(tag, page, 20);
+        articles = articleService.listPublishedByTagSorted(tag, sort, page, 20);
         filterDesc = "标签筛选";
-        model.addAttribute("keyword", "标签: " + tag);
+        model.addAttribute("filterLabel", "标签: " + tag);
     } else {
-        articles = articleService.listPublished(page, 100);
+        articles = articleService.listPublishedSorted(sort, page, 100);
     }
     
     model.addAttribute("page", articles);
@@ -68,6 +69,8 @@ public class ArticleController {
     // 加载所有分类，用于侧边栏展示
     model.addAttribute("allCategories", taxonomyService.listCategories());
     model.addAttribute("currentCategoryId", category);
+    model.addAttribute("currentTag", tag);
+    model.addAttribute("sort", sort);
 
     // Only group if no specific filter is applied (or keep grouping but maybe less relevant)
     // For now, let's keep grouping logic but maybe we only want to group when showing ALL articles.
@@ -86,9 +89,13 @@ public class ArticleController {
   }
 
   @GetMapping("/search")
-  public String search(@RequestParam String keyword, @RequestParam(defaultValue = "0") int page, Model model) {
+  public String search(@RequestParam String keyword,
+                       @RequestParam(defaultValue = "0") int page,
+                       @RequestParam(defaultValue = "latest") String sort,
+                       Model model) {
     model.addAttribute("keyword", keyword);
-    model.addAttribute("page", articleService.searchPublished(keyword, page, 10));
+    model.addAttribute("sort", sort);
+    model.addAttribute("page", articleService.searchPublishedSorted(keyword, sort, page, 10));
     model.addAttribute("allCategories", taxonomyService.listCategories());
     return "article/list";
   }

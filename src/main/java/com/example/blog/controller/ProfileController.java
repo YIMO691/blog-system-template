@@ -1,6 +1,8 @@
 package com.example.blog.controller;
 
 import com.example.blog.entity.User;
+import com.example.blog.entity.LoginRecord;
+import com.example.blog.entity.ActionLog;
 import com.example.blog.repository.UserRepository;
 import com.example.blog.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,11 +26,18 @@ public class ProfileController {
     private final com.example.blog.repository.ArticleLikeRepository articleLikeRepository;
     private final com.example.blog.repository.CommentLikeRepository commentLikeRepository;
     private final com.example.blog.repository.CommentRepository commentRepository;
+    private final com.example.blog.repository.LoginRecordRepository loginRecordRepository;
+    private final com.example.blog.repository.ActionLogRepository actionLogRepository;
 
     @GetMapping
-    public String profile(Model model) {
+    public String profile(Model model, HttpServletRequest request) {
         User current = userService.getCurrentUserOrThrow();
         model.addAttribute("user", current);
+
+        var loginPage = org.springframework.data.domain.PageRequest.of(0, 20);
+        var actionPage = org.springframework.data.domain.PageRequest.of(0, 20);
+        model.addAttribute("loginRecords", loginRecordRepository.findByUserIdOrderByTimeDesc(current.getId(), loginPage).getContent());
+        model.addAttribute("actionLogs", actionLogRepository.findByUserIdOrderByTimeDesc(current.getId(), actionPage).getContent());
         return "user/profile";
     }
 
@@ -37,6 +46,12 @@ public class ProfileController {
         User current = userService.getCurrentUserOrThrow();
         current.setNickname(nickname);
         userRepository.save(current);
+        actionLogRepository.save(ActionLog.builder()
+            .user(current)
+            .time(java.time.Instant.now())
+            .action("修改昵称")
+            .detail("昵称更新为：" + nickname)
+            .build());
         return "redirect:/profile?success=nickname";
     }
 
@@ -51,6 +66,12 @@ public class ProfileController {
         }
         current.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(current);
+        actionLogRepository.save(ActionLog.builder()
+            .user(current)
+            .time(java.time.Instant.now())
+            .action("修改密码")
+            .detail("用户修改了登录密码")
+            .build());
         return "redirect:/profile?success=password";
     }
 
@@ -72,6 +93,12 @@ public class ProfileController {
         current.setEmail(newEmail);
         current.setEmailVerified(true);
         userRepository.save(current);
+        actionLogRepository.save(ActionLog.builder()
+            .user(current)
+            .time(java.time.Instant.now())
+            .action("更新邮箱")
+            .detail("新邮箱：" + newEmail)
+            .build());
         return "redirect:/profile?success=email";
     }
 
@@ -81,6 +108,12 @@ public class ProfileController {
         if (phone == null || phone.isBlank()) {
             current.setPhone(null);
             userRepository.save(current);
+            actionLogRepository.save(ActionLog.builder()
+                .user(current)
+                .time(java.time.Instant.now())
+                .action("解绑手机号")
+                .detail("手机号已解除绑定")
+                .build());
             return "redirect:/profile?success=phone";
         }
         if (!phone.matches("\\d{11}")) {
@@ -94,6 +127,12 @@ public class ProfileController {
         }
         current.setPhone(phone);
         userRepository.save(current);
+        actionLogRepository.save(ActionLog.builder()
+            .user(current)
+            .time(java.time.Instant.now())
+            .action("更新手机号")
+            .detail("新手机号：" + phone)
+            .build());
         return "redirect:/profile?success=phone";
     }
 
@@ -150,6 +189,12 @@ public class ProfileController {
         // Let's check if they have articles.
         
         // Finally delete user
+        actionLogRepository.save(ActionLog.builder()
+            .user(current)
+            .time(java.time.Instant.now())
+            .action("注销账号")
+            .detail("用户发起账号注销")
+            .build());
         userRepository.delete(current);
         
         try {

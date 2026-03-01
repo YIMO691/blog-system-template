@@ -37,7 +37,10 @@ public class ArticleServiceImpl implements ArticleService {
   public Page<Article> listPublished(int page, int size) {
     Page<Article> articles = articleRepository.findByPublishedTrueOrderByCreatedAtDesc(PageRequest.of(page, size));
     // Force initialization of tags to avoid LazyInitializationException in view
-    articles.forEach(a -> a.getTags().size());
+    articles.forEach(a -> {
+      a.getTags().size();
+      a.setSummary(makeSummary(a.getContent(), 150));
+    });
     return articles;
   }
 
@@ -50,8 +53,10 @@ public class ArticleServiceImpl implements ArticleService {
       jakarta.persistence.criteria.Expression<String> content = root.get("content");
       jakarta.persistence.criteria.Predicate likeTitle = cb.like(title, "%" + keyword + "%");
       jakarta.persistence.criteria.Predicate likeContent = cb.like(content, "%" + keyword + "%");
+      jakarta.persistence.criteria.Join<com.example.blog.entity.Article, com.example.blog.entity.Tag> tagJoin = root.join("tags", jakarta.persistence.criteria.JoinType.LEFT);
+      jakarta.persistence.criteria.Predicate likeTag = cb.like(tagJoin.get("name"), "%" + keyword + "%");
       query.orderBy(cb.desc(root.get("createdAt")));
-      return cb.and(cb.isTrue(root.get("published")), cb.or(likeTitle, likeContent));
+      return cb.and(cb.isTrue(root.get("published")), cb.or(likeTitle, likeContent, likeTag));
     };
     Page<Article> articles = articleRepository.findAll(spec, PageRequest.of(page, size));
     // Force initialization of tags
@@ -59,15 +64,98 @@ public class ArticleServiceImpl implements ArticleService {
       a.getTags().size();
       if (a.getCategory() != null) { a.getCategory().getName(); }
       a.getAuthor().getUsername();
+      a.setSummary(makeSummary(a.getContent(), 150));
     });
     return articles;
   }
 
   @Override
   @Transactional(readOnly = true)
+  public Page<Article> searchPublishedSorted(String keyword, String sort, int page, int size) {
+    String k = (keyword == null ? "" : keyword.trim()).toLowerCase(Locale.ROOT);
+    org.springframework.data.jpa.domain.Specification<Article> spec = (root, query, cb) -> {
+      jakarta.persistence.criteria.Expression<String> title = root.get("title");
+      jakarta.persistence.criteria.Expression<String> content = root.get("content");
+      jakarta.persistence.criteria.Predicate likeTitle = cb.like(title, "%" + keyword + "%");
+      jakarta.persistence.criteria.Predicate likeContent = cb.like(content, "%" + keyword + "%");
+      jakarta.persistence.criteria.Join<com.example.blog.entity.Article, com.example.blog.entity.Tag> tagJoin = root.join("tags", jakarta.persistence.criteria.JoinType.LEFT);
+      jakarta.persistence.criteria.Predicate likeTag = cb.like(tagJoin.get("name"), "%" + keyword + "%");
+      return cb.and(cb.isTrue(root.get("published")), cb.or(likeTitle, likeContent, likeTag));
+    };
+    org.springframework.data.domain.Page<Article> articles =
+        articleRepository.findAll(spec, PageRequest.of(page, size, toSort(sort)));
+    articles.forEach(a -> {
+      a.getTags().size();
+      if (a.getCategory() != null) { a.getCategory().getName(); }
+      a.getAuthor().getUsername();
+      a.setSummary(makeSummary(a.getContent(), 150));
+    });
+    return articles;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<Article> listPublishedSorted(String sort, int page, int size) {
+    org.springframework.data.domain.Sort s = toSort(sort);
+    org.springframework.data.jpa.domain.Specification<Article> spec = (root, query, cb) -> cb.isTrue(root.get("published"));
+    Page<Article> articles = articleRepository.findAll(spec, PageRequest.of(page, size, s));
+    articles.forEach(a -> {
+      a.getTags().size();
+      a.setSummary(makeSummary(a.getContent(), 150));
+    });
+    return articles;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<Article> listPublishedByCategorySorted(Long categoryId, String sort, int page, int size) {
+    org.springframework.data.domain.Sort s = toSort(sort);
+    org.springframework.data.jpa.domain.Specification<Article> spec = (root, query, cb) -> {
+      if (categoryId == null) {
+        return cb.and(cb.isTrue(root.get("published")), cb.isNull(root.get("category")));
+      } else {
+        return cb.and(cb.isTrue(root.get("published")), cb.equal(root.get("category").get("id"), categoryId));
+      }
+    };
+    Page<Article> articles = articleRepository.findAll(spec, PageRequest.of(page, size, s));
+    articles.forEach(a -> {
+      a.getTags().size();
+      a.setSummary(makeSummary(a.getContent(), 150));
+    });
+    return articles;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<Article> listPublishedByTagSorted(String tagName, String sort, int page, int size) {
+    org.springframework.data.domain.Sort s = toSort(sort);
+    org.springframework.data.jpa.domain.Specification<Article> spec = (root, query, cb) -> {
+      jakarta.persistence.criteria.Join<com.example.blog.entity.Article, com.example.blog.entity.Tag> tagJoin = root.join("tags", jakarta.persistence.criteria.JoinType.INNER);
+      return cb.and(cb.isTrue(root.get("published")), cb.equal(tagJoin.get("name"), tagName));
+    };
+    Page<Article> articles = articleRepository.findAll(spec, PageRequest.of(page, size, s));
+    articles.forEach(a -> {
+      a.getTags().size();
+      a.setSummary(makeSummary(a.getContent(), 150));
+    });
+    return articles;
+  }
+
+  private org.springframework.data.domain.Sort toSort(String sort) {
+    if (sort == null) return org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt");
+    String s = sort.trim().toLowerCase(Locale.ROOT);
+    if ("hot".equals(s)) return org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "likes");
+    if ("views".equals(s) || "read".equals(s)) return org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "views");
+    return org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt");
+  }
+  @Override
+  @Transactional(readOnly = true)
   public Page<Article> listPublishedByCategory(Long categoryId, int page, int size) {
     Page<Article> articles = articleRepository.findByPublishedTrueAndCategoryIdOrderByCreatedAtDesc(categoryId, PageRequest.of(page, size));
-    articles.forEach(a -> a.getTags().size());
+    articles.forEach(a -> {
+      a.getTags().size();
+      a.setSummary(makeSummary(a.getContent(), 150));
+    });
     return articles;
   }
 
@@ -75,7 +163,10 @@ public class ArticleServiceImpl implements ArticleService {
   @Transactional(readOnly = true)
   public Page<Article> listPublishedByTag(String tagName, int page, int size) {
     Page<Article> articles = articleRepository.findByPublishedTrueAndTagsNameOrderByCreatedAtDesc(tagName, PageRequest.of(page, size));
-    articles.forEach(a -> a.getTags().size());
+    articles.forEach(a -> {
+      a.getTags().size();
+      a.setSummary(makeSummary(a.getContent(), 150));
+    });
     return articles;
   }
 
@@ -86,6 +177,7 @@ public class ArticleServiceImpl implements ArticleService {
         .orElseThrow(() -> new NotFoundException("文章不存在或未发布"));
     // Force initialization of tags
     article.getTags().size();
+    article.setSummary(makeSummary(article.getContent(), 150));
     return article;
   }
 
@@ -95,6 +187,7 @@ public class ArticleServiceImpl implements ArticleService {
     Article article = articleRepository.findById(id).orElseThrow(() -> new NotFoundException("文章不存在"));
     // 强制初始化 tags
     article.getTags().size();
+    article.setSummary(makeSummary(article.getContent(), 150));
     return article;
   }
 
@@ -135,7 +228,14 @@ public class ArticleServiceImpl implements ArticleService {
         a.setCategory(taxonomyService.getCategoryOrNull(form.categoryId()));
     }
     a.getTags().clear();
-    a.getTags().addAll(taxonomyService.resolveTags(form.tags()));
+    java.util.Set<String> limitedTags = (form.tags() == null) ? java.util.Collections.emptySet()
+        : form.tags().stream()
+            .filter(java.util.Objects::nonNull)
+            .map(String::trim)
+            .filter(s -> !s.isBlank())
+            .limit(6)
+            .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+    a.getTags().addAll(taxonomyService.resolveTags(limitedTags));
 
     if (id == null) {
       a = articleRepository.save(a);
@@ -228,5 +328,14 @@ public class ArticleServiceImpl implements ArticleService {
         .toLowerCase(Locale.ROOT);
     if (normalized.isBlank()) normalized = "post";
     return normalized + "-" + UUID.randomUUID().toString().substring(0, 8);
+  }
+
+  private String makeSummary(String html, int length) {
+    if (html == null) return "";
+    String plain = html.replaceAll("<[^>]*>", " ");
+    plain = plain.replaceAll("&nbsp;", " ");
+    plain = plain.replaceAll("\\s+", " ").trim();
+    if (plain.length() <= length) return plain;
+    return plain.substring(0, length) + "…";
   }
 }
