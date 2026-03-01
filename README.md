@@ -120,6 +120,16 @@ mvn spring-boot:run
 - 端口/协议不匹配
   - 465 使用 smtps + ssl.enable=true；587 使用 smtp + starttls.enable=true
 
+## Commit Convention
+
+- init: project initialization
+- feat: new feature
+- fix: bug fix
+- refactor: code improvement
+- style: UI adjustment
+- docs: documentation update
+- chore: config/dependency update
+
 ## 开发建议与扩展方向
 - 富文本编辑器替换（Quill/TinyMCE/Editor.js）
 - 标签自动补全与多选
