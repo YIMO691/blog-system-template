@@ -231,6 +231,109 @@ src/
 - SSL：申请证书后将 `listen 443 ssl` 与 `ssl_certificate`/`ssl_certificate_key` 加入上面配置。
 - 数据库迁移：生产环境建议使用 Flyway/Liquibase 管理 SQL 迁移，避免 `ddl-auto` 修改结构。
 
+## 外网部署详细步骤（内网穿透方案）
+
+### 1. 注册 natapp 账号
+1. 访问：https://natapp.cn/
+2. 点击右上角 "注册"
+3. 填写邮箱、密码完成注册
+4. 登录账号
+
+### 2. 创建隧道
+1. 登录后进入 "购买隧道" 页面
+2. 选择 "免费隧道"（或者付费隧道，更稳定）
+3. 配置隧道信息：
+   - 隧道名称：随意填写（如：myblog）
+   - 隧道协议：选择 `http`
+   - 本地端口：填写 `8080`（项目端口）
+   - 域名：可以选择随机域名或自定义域名（需要付费）
+4. 点击 "购买"（免费隧道直接获取）
+
+### 3. 下载 natapp 客户端
+1. 进入 "我的隧道" 页面
+2. 找到刚创建的隧道
+3. 点击 "客户端下载"
+4. 根据系统选择下载：
+   - Windows：`natapp_windows_amd64.zip`
+   - Mac：`natapp_darwin_amd64.zip`
+   - Linux：`natapp_linux_amd64.zip`
+
+### 4. 获取 authtoken
+1. 在 "我的隧道" 页面
+2. 找到你的隧道
+3. 复制 **authtoken**（一串随机字符）
+
+### 5. 启动项目
+在终端中启动 Spring Boot 项目：
+```bash
+cd blog-system-template
+mvn spring-boot:run
+```
+确保项目在 `http://localhost:8080` 正常运行。
+
+### 6. 运行 natapp 客户端
+**Windows 系统：**
+1. 解压下载的 `natapp_windows_amd64.zip`
+2. 打开命令提示符（CMD）或 PowerShell
+3. 进入 natapp 解压目录
+4. 运行命令：
+   ```bash
+   natapp.exe -authtoken=你的authtoken
+   ```
+
+**Mac/Linux 系统：**
+1. 解压下载的压缩包
+2. 打开终端
+3. 进入 natapp 解压目录
+4. 运行命令：
+   ```bash
+   chmod +x natapp
+   ./natapp -authtoken=你的authtoken
+   ```
+
+### 7. 获取外网访问地址
+natapp 启动成功后，会显示类似信息：
+```
+Tunnel Status       online
+Version             2.3.9
+Forwarding          http://abc123.natappfree.cc -> http://127.0.0.1:8080
+Web Interface       http://127.0.0.1:4040
+Total Connections   0
+Avg Conn Time       0.00ms
+```
+其中 `http://abc123.natappfree.cc` 就是你的外网访问地址！
+
+### 8. 测试访问
+在浏览器中访问你的外网地址：
+- 首页：`http://abc123.natappfree.cc/`
+- 登录：`http://abc123.natappfree.cc/auth/login`
+- 后台：`http://abc123.natappfree.cc/admin`
+
+### 9. 保持隧道运行
+**Windows 后台运行：**
+```bash
+start /b natapp.exe -authtoken=你的authtoken
+```
+
+**Mac/Linux 后台运行：**
+```bash
+nohup ./natapp -authtoken=你的authtoken &
+```
+
+### 10. 其他内网穿透服务
+| 服务 | 免费方案 | 优点 | 缺点 |
+|------|---------|------|------|
+| **natapp.cn** | 有免费隧道 | 国内访问快、操作简单 | 免费域名随机 |
+| **ngrok.cc** | 有免费隧道 | 稳定性好 | 免费隧道有限 |
+| **cloudflare tunnel** | 完全免费 | 无限流量、稳定 | 配置稍复杂 |
+| **花生壳** | 有免费版 | 老牌服务 | 免费版限制多 |
+
+### 11. 注意事项
+- 免费隧道的域名是随机的，每次重启会变化
+- 建议使用付费隧道获取固定域名
+- 内网穿透服务可能有访问速度限制，不建议用于生产环境
+- 确保本地网络稳定，避免断开连接
+
 ## 接口速查（选摘）
 - 认证与账户
   - `POST /auth/login` 登录
