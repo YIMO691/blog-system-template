@@ -50,10 +50,9 @@ CREATE DATABASE blog_db CHARACTER SET utf8mb4;
 ```
 
 2) 配置数据库与基础参数  
-编辑 `src/main/resources/application.yml`，设置：
-- spring.datasource.url/username/password
-- JPA 配置（已默认 ddl-auto: update）
-- Thymeleaf 与日志级别等
+- 公共配置：`src/main/resources/application.yml`（端口、Multipart、日志、上传白名单等）
+- 开发环境：`src/main/resources/application-dev.yml`（本地 MySQL、JPA validate、Flyway）
+- 生产环境：`src/main/resources/application-prod.yml`（从环境变量读取数据源与邮件，JPA validate、Flyway）
 
 3) 配置邮件（用于邮箱验证码）
 - 支持环境变量（推荐）或直接在 yml 中配置：
@@ -82,7 +81,12 @@ spring:
 
 4) 启动
 ```bash
-mvn spring-boot:run
+# 开发（dev）
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# 生产（prod）
+# 需注入 SPRING_DATASOURCE_URL/USERNAME/PASSWORD 等环境变量
+SPRING_PROFILES_ACTIVE=prod java -jar target/blog-*.jar
 ```
 
 访问地址：
@@ -147,7 +151,8 @@ mvn spring-boot:run
 - 登录记录 LoginRecord：user（可空）、time、ip、ua、success
 - 操作日志 ActionLog：user、time、action、detail
 
-> JPA 配置为 `ddl-auto: update`，开发期会自动迁移建表，生产环境请改为 `validate` 并显式维护迁移脚本（Flyway/Liquibase）。
+> 数据库迁移
+> 本分支已接入 Flyway，JPA 配置为 `ddl-auto: validate`。首次在已有库上运行时通过 `baseline-on-migrate: true` 做基线，后续按 `db/migration` 版本化迁移。
 
 ## 登录记录与操作日志实现说明
 - Spring Security
@@ -157,8 +162,22 @@ mvn spring-boot:run
 - 个人中心页面仅展示最近 20 条（可按需分页拓展）
 
 ## 图片上传与正文渲染
+- 控制器仅负责鉴权与调用服务：`UploadService.storeImage/loadImage`
+- 服务实现包含：目录创建、大小限制、MIME/扩展名白名单校验、防路径穿越、随机文件名、类型识别返回 `Content-Type`
 - 编辑页支持本地图片上传后自动在正文插入 `<img>`，详情页按 HTML 渲染
 - 请确保存储位置与访问接口已在控制器中放行或加鉴权
+
+## 测试
+- 服务层：`LocalUploadServiceTest`
+  - 覆盖：正常上传、空文件、非法扩展名、非法 MIME、超大文件、缺失文件读取
+- 启动验证：`SmokeTest`（加载应用上下文）
+- 运行：
+  - `mvn test`
+
+## CI（GitHub Actions）
+- 默认工作流：Java 17 + Maven
+  - 执行 `mvn -B -ntp test` 与 `mvn -B -ntp -DskipTests package`
+  - 可在 Pull Request 中自动验证构建与测试
 
 ## 搜索与筛选/排序组合
 - 搜索支持标题/正文/标签名模糊匹配
@@ -193,26 +212,28 @@ src/
 ```
 
 ## 配置与环境变量
-- 基础数据库：`spring.datasource.url` / `username` / `password`
-- JPA：`spring.jpa.hibernate.ddl-auto`（开发期 `update`，生产建议 `validate`）
-- 邮件：`spring.mail.*`（见上文“配置邮件”）
-- 可选环境变量（示例）：
-  - `MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_PROTOCOL`
-  - `APP_BASE_URL`（用于生成邮件中的链接，可按需扩展）
+- Profiles
+  - `application.yml`：公共配置（含 `spring.profiles.active: dev`）
+  - `application-dev.yml`：本地数据库/邮件、`ddl-auto: validate`、`flyway.enabled: true`
+  - `application-prod.yml`：从环境变量读取数据库/邮件、`ddl-auto: validate`、`flyway.enabled: true`
+- 数据库（生产建议用环境变量）
+  - `SPRING_DATASOURCE_URL` / `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`
+- 邮件：`MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_PROTOCOL`
+- 上传目录：`APP_UPLOAD_DIR`（默认 `${user.dir}/uploads`）
 
 ## 构建与运行
-- 开发运行：
-  ```
-  mvn spring-boot:run
-  ```
-- 打包可执行 Jar：
-  ```
-  mvn -DskipTests package
-  java -jar target/blog-*.jar
-  ```
-- 常见 JVM 参数（按需选择）：
-  - `-Xms512m -Xmx512m` 固定堆内存
-  - `-Dserver.port=8080` 修改端口
+- 构建：
+  - `mvn clean package`
+- 开发：
+  - `mvn spring-boot:run -Dspring-boot.run.profiles=dev`
+- 生产：
+  - `SPRING_PROFILES_ACTIVE=prod` 并注入数据源/邮件环境变量后运行 Jar
+  - 常用 JVM 参数：`-Xms512m -Xmx512m`、`-Dserver.port=8080`
+
+## 数据库迁移（Flyway）
+- 现有数据库首次接入：已启用 `baseline-on-migrate: true`，基线版本 `1`
+- 自定义迁移：在 `src/main/resources/db/migration/` 新增 `V{N}__{desc}.sql`
+- 示例：`V2__set_admin_role.sql`（将 admin 设为 `ROLE_ADMIN`、其余空角色补为 `ROLE_USER`）
 
 ## 生产部署示例
 - 反向代理（Nginx）：
@@ -230,6 +251,120 @@ src/
   ```
 - SSL：申请证书后将 `listen 443 ssl` 与 `ssl_certificate`/`ssl_certificate_key` 加入上面配置。
 - 数据库迁移：生产环境建议使用 Flyway/Liquibase 管理 SQL 迁移，避免 `ddl-auto` 修改结构。
+
+## 外网部署详细步骤（内网穿透方案）
+
+### 1. 注册 natapp 账号
+1. 访问：https://natapp.cn/
+2. 点击右上角 "注册"
+3. 填写邮箱、密码完成注册
+4. 登录账号
+
+### 2. 创建隧道
+1. 登录后进入 "购买隧道" 页面
+2. 选择 "免费隧道"（或者付费隧道，更稳定）
+3. 配置隧道信息：
+   - 隧道名称：随意填写（如：myblog）
+   - 隧道协议：选择 `http`
+   - 本地端口：填写 `8080`（项目端口）
+   - 域名：可以选择随机域名或自定义域名（需要付费）
+4. 点击 "购买"（免费隧道直接获取）
+
+### 3. 下载 natapp 客户端
+1. 进入 "我的隧道" 页面
+2. 找到刚创建的隧道
+3. 点击 "客户端下载"
+4. 根据系统选择下载：
+   - Windows：`natapp_windows_amd64.zip`
+   - Mac：`natapp_darwin_amd64.zip`
+   - Linux：`natapp_linux_amd64.zip`
+
+## 仓库规范与目录
+- 标准结构：仅保留 src/、pom.xml、README.md、.gitignore 等必要文件
+- IDE/本地文件不纳入版本库：.settings/、.vscode/、.classpath、.project、.factorypath
+- 上传目录不纳入版本库：uploads/*（仅保留占位 uploads/.gitkeep）
+- 根目录若出现 com/** 这类历史遗留副本，不再跟踪，源码以 src/main/java/** 为准
+
+## 外部化配置说明
+- 示例配置：src/main/resources/application-example.yml、.env.example
+- 支持通过环境变量或 profile 覆盖默认值（参考 Spring Boot Externalized Configuration）
+- 上传目录可配置：app.upload-dir 或 APP_UPLOAD_DIR，默认 ${user.dir}/uploads
+
+### 4. 获取 authtoken
+1. 在 "我的隧道" 页面
+2. 找到你的隧道
+3. 复制 **authtoken**（一串随机字符）
+
+### 5. 启动项目
+在终端中启动 Spring Boot 项目：
+```bash
+cd blog-system-template
+mvn spring-boot:run
+```
+确保项目在 `http://localhost:8080` 正常运行。
+
+### 6. 运行 natapp 客户端
+**Windows 系统：**
+1. 解压下载的 `natapp_windows_amd64.zip`
+2. 打开命令提示符（CMD）或 PowerShell
+3. 进入 natapp 解压目录
+4. 运行命令：
+   ```bash
+   natapp.exe -authtoken=你的authtoken
+   ```
+
+**Mac/Linux 系统：**
+1. 解压下载的压缩包
+2. 打开终端
+3. 进入 natapp 解压目录
+4. 运行命令：
+   ```bash
+   chmod +x natapp
+   ./natapp -authtoken=你的authtoken
+   ```
+
+### 7. 获取外网访问地址
+natapp 启动成功后，会显示类似信息：
+```
+Tunnel Status       online
+Version             2.3.9
+Forwarding          http://abc123.natappfree.cc -> http://127.0.0.1:8080
+Web Interface       http://127.0.0.1:4040
+Total Connections   0
+Avg Conn Time       0.00ms
+```
+其中 `http://abc123.natappfree.cc` 就是你的外网访问地址！
+
+### 8. 测试访问
+在浏览器中访问你的外网地址：
+- 首页：`http://abc123.natappfree.cc/`
+- 登录：`http://abc123.natappfree.cc/auth/login`
+- 后台：`http://abc123.natappfree.cc/admin`
+
+### 9. 保持隧道运行
+**Windows 后台运行：**
+```bash
+start /b natapp.exe -authtoken=你的authtoken
+```
+
+**Mac/Linux 后台运行：**
+```bash
+nohup ./natapp -authtoken=你的authtoken &
+```
+
+### 10. 其他内网穿透服务
+| 服务 | 免费方案 | 优点 | 缺点 |
+|------|---------|------|------|
+| **natapp.cn** | 有免费隧道 | 国内访问快、操作简单 | 免费域名随机 |
+| **ngrok.cc** | 有免费隧道 | 稳定性好 | 免费隧道有限 |
+| **cloudflare tunnel** | 完全免费 | 无限流量、稳定 | 配置稍复杂 |
+| **花生壳** | 有免费版 | 老牌服务 | 免费版限制多 |
+
+### 11. 注意事项
+- 免费隧道的域名是随机的，每次重启会变化
+- 建议使用付费隧道获取固定域名
+- 内网穿透服务可能有访问速度限制，不建议用于生产环境
+- 确保本地网络稳定，避免断开连接
 
 ## 接口速查（选摘）
 - 认证与账户

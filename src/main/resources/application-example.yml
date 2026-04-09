@@ -1,0 +1,47 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/blog_db?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+    username: your_username
+    password: your_password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  thymeleaf:
+    cache: false
+  mail:
+    host: smtp.example.com
+    port: 465
+    username: your_email@example.com
+    password: your_mail_app_password
+    protocol: smtps
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+        debug: false
+
+app:
+  upload:
+    dir: ${user.dir}/uploads
+    max-size: 5242880
+    allowed-extensions:
+      - .jpg
+      - .jpeg
+      - .png
+      - .gif
+      - .webp
+    allowed-content-types:
+      - image/jpeg
+      - image/png
+      - image/gif
+      - image/webp

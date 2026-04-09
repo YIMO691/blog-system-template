@@ -14,15 +14,11 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Set;
 import java.util.Map;
-import java.util.UUID;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import com.example.blog.service.UploadService;
 
 @Controller
 @RequestMapping("/articles")
@@ -33,6 +29,7 @@ public class ArticleController {
   private final CommentService commentService;
   private final TaxonomyService taxonomyService;
   private final com.example.blog.service.UserService userService;
+  private final UploadService uploadService;
 
   @GetMapping
   public String list(@RequestParam(defaultValue = "0") int page, 
@@ -150,7 +147,7 @@ public class ArticleController {
   @GetMapping("/editor/new")
   public String createForm(Model model) {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.isAdmin()) {
       return "redirect:/?error=no_permission";
     }
     java.util.List<Article> drafts = articleService.listDrafts(currentUser.getId());
@@ -166,7 +163,7 @@ public class ArticleController {
   @GetMapping("/editor/{id}")
   public String editForm(@PathVariable Long id, Model model) {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.isAdmin()) {
       return "redirect:/?error=no_permission";
     }
     Article a = articleService.getById(id);
@@ -195,7 +192,7 @@ public class ArticleController {
                        @RequestParam(required = false) Long id,
                        Model model) {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.isAdmin()) {
       return "redirect:/?error=no_permission";
     }
     if (br.hasErrors()) {
@@ -208,6 +205,10 @@ public class ArticleController {
 
   @PostMapping("/{id}/delete")
   public String delete(@PathVariable Long id) {
+    com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
+    if (!currentUser.isAdmin()) {
+      return "redirect:/?error=no_permission";
+    }
     articleService.delete(id);
     return "redirect:/";
   }
@@ -215,35 +216,25 @@ public class ArticleController {
   @PostMapping("/upload-image")
   public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) throws java.io.IOException {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.isAdmin()) {
       return ResponseEntity.status(403).body(Map.of("error", "no_permission"));
     }
-    if (file.isEmpty()) {
-      return ResponseEntity.badRequest().body(Map.of("error", "empty_file"));
+    try {
+      String filename = uploadService.storeImage(file);
+      return ResponseEntity.ok(Map.of("url", "/articles/image/" + filename));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
-    String original = file.getOriginalFilename();
-    String ext = "";
-    if (original != null && original.contains(".")) {
-      ext = original.substring(original.lastIndexOf(".")).toLowerCase();
-    }
-    String name = UUID.randomUUID().toString().replace("-", "") + ext;
-    Path dir = Paths.get(System.getProperty("user.dir"), "uploads");
-    if (!Files.exists(dir)) {
-      Files.createDirectories(dir);
-    }
-    Path target = dir.resolve(name);
-    Files.write(target, file.getBytes());
-    String url = "/articles/image/" + name;
-    return ResponseEntity.ok(Map.of("url", url));
   }
 
   @GetMapping("/image/{filename}")
   public ResponseEntity<Resource> getImage(@PathVariable String filename) throws java.io.IOException {
-    Path file = Paths.get(System.getProperty("user.dir"), "uploads", filename);
-    if (!Files.exists(file)) {
+    Resource resource = uploadService.loadImage(filename);
+    if (resource == null) {
       return ResponseEntity.notFound().build();
     }
-    FileSystemResource resource = new FileSystemResource(file.toFile());
-    return ResponseEntity.ok(resource);
+    return ResponseEntity.ok()
+      .contentType(uploadService.getMediaType(filename))
+      .body(resource);
   }
 }

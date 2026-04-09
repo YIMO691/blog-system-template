@@ -95,9 +95,67 @@
     </div>
   </div>
 
-  <div class="alert alert-light border d-flex align-items-center mb-4">
-    <i class="bi bi-info-circle me-2 text-primary"></i>
-    <span>统计图表已暂时关闭，仅保留数据概览与系统信息。</span>
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header py-3 fw-bold"><i class="bi bi-graph-up-arrow me-2"></i>新增趋势</div>
+        <div class="card-body">
+          <div th:if="${#lists.isEmpty(last7DaysLabels)}" class="text-muted">暂无数据</div>
+          <canvas id="chartTrend" height="120" th:if="${!#lists.isEmpty(last7DaysLabels)}"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header py-3 fw-bold"><i class="bi bi-hand-thumbs-up me-2"></i>Top5 点赞文章</div>
+        <div class="card-body">
+          <div th:if="${#lists.isEmpty(topLikesTitles)}" class="text-muted">暂无点赞数据</div>
+          <canvas id="chartTopLikes" height="120" th:if="${!#lists.isEmpty(topLikesTitles)}"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header py-3 fw-bold"><i class="bi bi-chat-dots me-2"></i>Top5 评论最多文章</div>
+        <div class="card-body">
+          <div th:if="${#lists.isEmpty(topCommentedTitles)}" class="text-muted">暂无评论数据</div>
+          <canvas id="chartTopCommented" height="120" th:if="${!#lists.isEmpty(topCommentedTitles)}"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header py-3 fw-bold"><i class="bi bi-bar-chart-line me-2"></i>最近 10 篇文章浏览量</div>
+        <div class="card-body">
+          <div th:if="${#lists.isEmpty(recentTitles)}" class="text-muted">暂无浏览数据</div>
+          <canvas id="chartRecentViews" height="120" th:if="${!#lists.isEmpty(recentTitles)}"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header py-3 fw-bold"><i class="bi bi-hash me-2"></i>标签 Top10 使用分布</div>
+        <div class="card-body">
+          <div th:if="${#lists.isEmpty(tagTopNames)}" class="text-muted">暂无标签数据</div>
+          <canvas id="chartTags" height="90" th:if="${!#lists.isEmpty(tagTopNames)}"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header py-3 fw-bold"><i class="bi bi-pie-chart me-2"></i>分类文章占比</div>
+        <div class="card-body">
+          <div th:if="${#lists.isEmpty(categoryNames)}" class="text-muted">暂无分类数据</div>
+          <canvas id="chartCategoryPie" height="90" th:if="${!#lists.isEmpty(categoryNames)}"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="card shadow-sm border-0">
@@ -128,6 +186,86 @@
     <a class="btn btn-outline-secondary rounded-pill px-4" th:href="@{/admin}"><i class="bi bi-arrow-left me-1"></i>返回仪表盘</a>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script th:inline="javascript">
+  const trendLabels     = /*[[${last7DaysLabels}]]*/ [];
+  const trendArticles   = /*[[${last7Articles}]]*/ [];
+  const trendComments   = /*[[${last7Comments}]]*/ [];
+  const tagTopNames     = /*[[${tagTopNames}]]*/ [];
+  const tagTopCounts    = /*[[${tagTopCounts}]]*/ [];
+  const topLikesTitles  = /*[[${topLikesTitles}]]*/ [];
+  const topLikesValues  = /*[[${topLikesValues}]]*/ [];
+  const topCommentedTitles = /*[[${topCommentedTitles}]]*/ [];
+  const topCommentedCounts = /*[[${topCommentedCounts}]]*/ [];
+  const recentTitles    = /*[[${recentTitles}]]*/ [];
+  const recentViews     = /*[[${recentViews}]]*/ [];
+  const categoryNames   = /*[[${categoryNames}]]*/ [];
+  const categoryCounts  = /*[[${categoryCounts}]]*/ [];
+
+  const theme = { primary:'#2563eb', success:'#22c55e', warning:'#f59e0b', info:'#0ea5e9', danger:'#ef4444' };
+
+  const elTrend = document.getElementById('chartTrend');
+  if (elTrend) {
+    new Chart(elTrend.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: trendLabels,
+        datasets: [
+          { label: '新增文章', data: trendArticles, tension: .4, borderColor: theme.primary, backgroundColor: 'rgba(37,99,235,0.15)', fill: true },
+          { label: '新增评论', data: trendComments, tension: .4, borderColor: theme.success, backgroundColor: 'rgba(34,197,94,0.15)', fill: true }
+        ]
+      },
+      options: {
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { grid: { display: false } } }
+      }
+    });
+  }
+
+  const elTags = document.getElementById('chartTags');
+  if (elTags) {
+    new Chart(elTags.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: tagTopNames, datasets: [{ data: tagTopCounts, borderWidth: 0, backgroundColor: ['#2563eb','#22c55e','#f59e0b','#ef4444','#0ea5e9','#8b5cf6','#14b8a6','#f43f5e','#64748b','#10b981'] }] },
+      options: { plugins: { legend: { position: 'bottom' } }, cutout: '55%' }
+    });
+  }
+
+  const elTopLikes = document.getElementById('chartTopLikes');
+  if (elTopLikes) {
+    new Chart(elTopLikes.getContext('2d'), {
+      type: 'bar',
+      data: { labels: topLikesTitles, datasets: [{ data: topLikesValues, backgroundColor: theme.success }] },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+
+  const elTopCommented = document.getElementById('chartTopCommented');
+  if (elTopCommented) {
+    new Chart(elTopCommented.getContext('2d'), {
+      type: 'bar',
+      data: { labels: topCommentedTitles, datasets: [{ data: topCommentedCounts, backgroundColor: theme.warning }] },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+
+  const elRecent = document.getElementById('chartRecentViews');
+  if (elRecent) {
+    new Chart(elRecent.getContext('2d'), {
+      type: 'bar',
+      data: { labels: recentTitles, datasets: [{ data: recentViews, backgroundColor: theme.info }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+  const elCategoryPie = document.getElementById('chartCategoryPie');
+  if (elCategoryPie) {
+    new Chart(elCategoryPie.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: categoryNames, datasets: [{ data: categoryCounts, borderWidth: 0, backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#06b6d4','#8b5cf6','#14b8a6','#f43f5e','#64748b','#84cc16'] }] },
+      options: { plugins: { legend: { position: 'bottom' } }, cutout: '55%' }
+    });
+  }
+</script>
 <script>
   // Welcome date
   (function(){
