@@ -50,10 +50,9 @@ CREATE DATABASE blog_db CHARACTER SET utf8mb4;
 ```
 
 2) 配置数据库与基础参数  
-编辑 `src/main/resources/application.yml`，设置：
-- spring.datasource.url/username/password
-- JPA 配置（已默认 ddl-auto: update）
-- Thymeleaf 与日志级别等
+- 公共配置：`src/main/resources/application.yml`（端口、Multipart、日志、上传白名单等）
+- 开发环境：`src/main/resources/application-dev.yml`（本地 MySQL、JPA validate、Flyway）
+- 生产环境：`src/main/resources/application-prod.yml`（从环境变量读取数据源与邮件，JPA validate、Flyway）
 
 3) 配置邮件（用于邮箱验证码）
 - 支持环境变量（推荐）或直接在 yml 中配置：
@@ -82,7 +81,12 @@ spring:
 
 4) 启动
 ```bash
-mvn spring-boot:run
+# 开发（dev）
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# 生产（prod）
+# 需注入 SPRING_DATASOURCE_URL/USERNAME/PASSWORD 等环境变量
+SPRING_PROFILES_ACTIVE=prod java -jar target/blog-*.jar
 ```
 
 访问地址：
@@ -147,7 +151,8 @@ mvn spring-boot:run
 - 登录记录 LoginRecord：user（可空）、time、ip、ua、success
 - 操作日志 ActionLog：user、time、action、detail
 
-> JPA 配置为 `ddl-auto: update`，开发期会自动迁移建表，生产环境请改为 `validate` 并显式维护迁移脚本（Flyway/Liquibase）。
+> 数据库迁移
+> 本分支已接入 Flyway，JPA 配置为 `ddl-auto: validate`。首次在已有库上运行时通过 `baseline-on-migrate: true` 做基线，后续按 `db/migration` 版本化迁移。
 
 ## 登录记录与操作日志实现说明
 - Spring Security
@@ -157,8 +162,22 @@ mvn spring-boot:run
 - 个人中心页面仅展示最近 20 条（可按需分页拓展）
 
 ## 图片上传与正文渲染
+- 控制器仅负责鉴权与调用服务：`UploadService.storeImage/loadImage`
+- 服务实现包含：目录创建、大小限制、MIME/扩展名白名单校验、防路径穿越、随机文件名、类型识别返回 `Content-Type`
 - 编辑页支持本地图片上传后自动在正文插入 `<img>`，详情页按 HTML 渲染
 - 请确保存储位置与访问接口已在控制器中放行或加鉴权
+
+## 测试
+- 服务层：`LocalUploadServiceTest`
+  - 覆盖：正常上传、空文件、非法扩展名、非法 MIME、超大文件、缺失文件读取
+- 启动验证：`SmokeTest`（加载应用上下文）
+- 运行：
+  - `mvn test`
+
+## CI（GitHub Actions）
+- 默认工作流：Java 17 + Maven
+  - 执行 `mvn -B -ntp test` 与 `mvn -B -ntp -DskipTests package`
+  - 可在 Pull Request 中自动验证构建与测试
 
 ## 搜索与筛选/排序组合
 - 搜索支持标题/正文/标签名模糊匹配
@@ -193,26 +212,28 @@ src/
 ```
 
 ## 配置与环境变量
-- 基础数据库：`spring.datasource.url` / `username` / `password`
-- JPA：`spring.jpa.hibernate.ddl-auto`（开发期 `update`，生产建议 `validate`）
-- 邮件：`spring.mail.*`（见上文“配置邮件”）
-- 可选环境变量（示例）：
-  - `MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_PROTOCOL`
-  - `APP_BASE_URL`（用于生成邮件中的链接，可按需扩展）
+- Profiles
+  - `application.yml`：公共配置（含 `spring.profiles.active: dev`）
+  - `application-dev.yml`：本地数据库/邮件、`ddl-auto: validate`、`flyway.enabled: true`
+  - `application-prod.yml`：从环境变量读取数据库/邮件、`ddl-auto: validate`、`flyway.enabled: true`
+- 数据库（生产建议用环境变量）
+  - `SPRING_DATASOURCE_URL` / `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`
+- 邮件：`MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_PROTOCOL`
+- 上传目录：`APP_UPLOAD_DIR`（默认 `${user.dir}/uploads`）
 
 ## 构建与运行
-- 开发运行：
-  ```
-  mvn spring-boot:run
-  ```
-- 打包可执行 Jar：
-  ```
-  mvn -DskipTests package
-  java -jar target/blog-*.jar
-  ```
-- 常见 JVM 参数（按需选择）：
-  - `-Xms512m -Xmx512m` 固定堆内存
-  - `-Dserver.port=8080` 修改端口
+- 构建：
+  - `mvn clean package`
+- 开发：
+  - `mvn spring-boot:run -Dspring-boot.run.profiles=dev`
+- 生产：
+  - `SPRING_PROFILES_ACTIVE=prod` 并注入数据源/邮件环境变量后运行 Jar
+  - 常用 JVM 参数：`-Xms512m -Xmx512m`、`-Dserver.port=8080`
+
+## 数据库迁移（Flyway）
+- 现有数据库首次接入：已启用 `baseline-on-migrate: true`，基线版本 `1`
+- 自定义迁移：在 `src/main/resources/db/migration/` 新增 `V{N}__{desc}.sql`
+- 示例：`V2__set_admin_role.sql`（将 admin 设为 `ROLE_ADMIN`、其余空角色补为 `ROLE_USER`）
 
 ## 生产部署示例
 - 反向代理（Nginx）：
