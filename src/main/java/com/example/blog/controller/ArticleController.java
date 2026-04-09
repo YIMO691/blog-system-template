@@ -8,6 +8,7 @@ import com.example.blog.service.CommentService;
 import com.example.blog.service.TaxonomyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -33,6 +34,8 @@ public class ArticleController {
   private final CommentService commentService;
   private final TaxonomyService taxonomyService;
   private final com.example.blog.service.UserService userService;
+  @Value("${app.upload-dir:${user.dir}/uploads}")
+  private String uploadDir;
 
   @GetMapping
   public String list(@RequestParam(defaultValue = "0") int page, 
@@ -227,7 +230,7 @@ public class ArticleController {
       ext = original.substring(original.lastIndexOf(".")).toLowerCase();
     }
     String name = UUID.randomUUID().toString().replace("-", "") + ext;
-    Path dir = Paths.get(System.getProperty("user.dir"), "uploads");
+    Path dir = Paths.get(uploadDir);
     if (!Files.exists(dir)) {
       Files.createDirectories(dir);
     }
@@ -239,7 +242,7 @@ public class ArticleController {
 
   @GetMapping("/image/{filename}")
   public ResponseEntity<Resource> getImage(@PathVariable String filename) throws java.io.IOException {
-    Path file = Paths.get(System.getProperty("user.dir"), "uploads", filename);
+    Path file = Paths.get(uploadDir, filename);
     if (!Files.exists(file)) {
       return ResponseEntity.notFound().build();
     }
