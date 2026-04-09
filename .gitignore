@@ -2,10 +2,53 @@
 /target/
 *.log
 
+# Compiled artifacts
+*.class
+*.jar
+
 # IntelliJ
 /.idea/
 *.iml
 
+# Visual Studio / Visual Studio Code
+/.vs/
+/.vscode/
+
 # OS
 Thumbs.db
 .DS_Store
+
+# Eclipse
+/.settings/
+.classpath
+.project
+.factorypath
+
+# Local database dumps / backups
+blog_db_backup.sql
+*.sql
+
+# Local runtime data
+uploads/*
+!uploads/.gitkeep
+ 
+# Local config / secrets
+.env
+.env.*
+application-local.yml
+application-local.yaml
+application-local.properties
+src/main/resources/application-local.yml
+src/main/resources/application-dev-local.yml
+src/main/resources/application-prod-local.yml
+
+# Root-level stray compiled or source artifacts
+/com/
+
+# Logs
+logs/
+
+# Local Spring Boot config (do not commit secrets)
+application-local.yml
+application-local.yaml
+application-local.properties
