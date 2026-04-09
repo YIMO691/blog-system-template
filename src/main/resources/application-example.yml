@@ -31,4 +31,17 @@ spring:
         debug: false
 
 app:
-  upload-dir: ${user.dir}/uploads
+  upload:
+    dir: ${user.dir}/uploads
+    max-size: 5242880
+    allowed-extensions:
+      - .jpg
+      - .jpeg
+      - .png
+      - .gif
+      - .webp
+    allowed-content-types:
+      - image/jpeg
+      - image/png
+      - image/gif
+      - image/webp

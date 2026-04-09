@@ -1,45 +1,38 @@
 server:
   port: 8080
-  error:
-    include-message: always
-    include-binding-errors: always
-    include-stacktrace: always
 
 spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/blog_db?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: xjliieea691
+  profiles:
+    active: dev
   servlet:
     multipart:
       max-file-size: 5MB
       max-request-size: 10MB
   jpa:
-    hibernate:
-      ddl-auto: update
     open-in-view: false
-    show-sql: true
     properties:
       hibernate:
         format_sql: true
   thymeleaf:
     cache: false
-  mail:
-    host: ${MAIL_HOST:smtp.qq.com}
-    port: ${MAIL_PORT:465}
-    username: ${MAIL_USERNAME:2054469475@qq.com}
-    password: ${MAIL_PASSWORD:yxxkfqdhqmqvcfdd}
-    protocol: ${MAIL_PROTOCOL:smtps}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          ssl:
-            enable: true
-        debug: false
+
+app:
+  upload:
+    dir: ${APP_UPLOAD_DIR:${user.dir}/uploads}
+    max-size: 5242880
+    allowed-extensions:
+      - .jpg
+      - .jpeg
+      - .png
+      - .gif
+      - .webp
+    allowed-content-types:
+      - image/jpeg
+      - image/png
+      - image/gif
+      - image/webp
 
 logging:
   level:
-    org.thymeleaf: DEBUG
     org.springframework.web: INFO
     org.springframework.security: INFO
