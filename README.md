@@ -258,6 +258,17 @@ src/
    - Mac：`natapp_darwin_amd64.zip`
    - Linux：`natapp_linux_amd64.zip`
 
+## 仓库规范与目录
+- 标准结构：仅保留 src/、pom.xml、README.md、.gitignore 等必要文件
+- IDE/本地文件不纳入版本库：.settings/、.vscode/、.classpath、.project、.factorypath
+- 上传目录不纳入版本库：uploads/*（仅保留占位 uploads/.gitkeep）
+- 根目录若出现 com/** 这类历史遗留副本，不再跟踪，源码以 src/main/java/** 为准
+
+## 外部化配置说明
+- 示例配置：src/main/resources/application-example.yml、.env.example
+- 支持通过环境变量或 profile 覆盖默认值（参考 Spring Boot Externalized Configuration）
+- 上传目录可配置：app.upload-dir 或 APP_UPLOAD_DIR，默认 ${user.dir}/uploads
+
 ### 4. 获取 authtoken
 1. 在 "我的隧道" 页面
 2. 找到你的隧道
