@@ -19,6 +19,10 @@ jobs:
           java-version: '17'
           cache: maven
       - name: Run tests
+        env:
+          SPRING_PROFILES_ACTIVE: test
         run: mvn -B -ntp test
       - name: Package
+        env:
+          SPRING_PROFILES_ACTIVE: test
         run: mvn -B -ntp -DskipTests package

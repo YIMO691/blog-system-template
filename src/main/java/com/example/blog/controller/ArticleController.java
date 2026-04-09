@@ -205,6 +205,10 @@ public class ArticleController {
 
   @PostMapping("/{id}/delete")
   public String delete(@PathVariable Long id) {
+    com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
+    if (!currentUser.isAdmin()) {
+      return "redirect:/?error=no_permission";
+    }
     articleService.delete(id);
     return "redirect:/";
   }

@@ -4,6 +4,7 @@ import com.example.blog.service.impl.auth.JpaUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -27,13 +28,15 @@ public class SecurityConfig {
         .csrf(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(
-                            "/", "/articles", "/articles/search", "/articles/{slug}", "/articles/{slug}/comments", "/auth/**",
+                            "/", "/articles", "/articles/search", "/articles/{slug}", "/articles/{slug}/comments", "/articles/image/**",
+                            "/auth/**",
                             "/error", "/error/**",
                             "/favicon.ico",
                             "/css/**", "/js/**", "/images/**",
                             "/actuator/health", "/actuator/health/**"
                     ).permitAll()
-                    .requestMatchers("/articles/editor/**", "/articles/editor").authenticated()
+                    .requestMatchers("/articles/editor/**", "/articles/editor").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.POST, "/articles/upload-image", "/articles/*/delete").hasRole("ADMIN")
                     .requestMatchers("/admin/**", "/actuator/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             )
