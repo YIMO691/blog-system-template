@@ -55,4 +55,8 @@ public class User {
     if (createdAt == null) createdAt = Instant.now();
     if (role == null) role = Role.ROLE_USER;
   }
+
+  public boolean isAdmin() {
+    return this.role == Role.ROLE_ADMIN;
+  }
 }

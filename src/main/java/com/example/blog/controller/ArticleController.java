@@ -147,7 +147,7 @@ public class ArticleController {
   @GetMapping("/editor/new")
   public String createForm(Model model) {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.isAdmin()) {
       return "redirect:/?error=no_permission";
     }
     java.util.List<Article> drafts = articleService.listDrafts(currentUser.getId());
@@ -163,7 +163,7 @@ public class ArticleController {
   @GetMapping("/editor/{id}")
   public String editForm(@PathVariable Long id, Model model) {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.isAdmin()) {
       return "redirect:/?error=no_permission";
     }
     Article a = articleService.getById(id);
@@ -192,7 +192,7 @@ public class ArticleController {
                        @RequestParam(required = false) Long id,
                        Model model) {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.isAdmin()) {
       return "redirect:/?error=no_permission";
     }
     if (br.hasErrors()) {
@@ -212,7 +212,7 @@ public class ArticleController {
   @PostMapping("/upload-image")
   public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) throws java.io.IOException {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.isAdmin()) {
       return ResponseEntity.status(403).body(Map.of("error", "no_permission"));
     }
     try {
@@ -229,6 +229,8 @@ public class ArticleController {
     if (resource == null) {
       return ResponseEntity.notFound().build();
     }
-    return ResponseEntity.ok(resource);
+    return ResponseEntity.ok()
+      .contentType(uploadService.getMediaType(filename))
+      .body(resource);
   }
 }

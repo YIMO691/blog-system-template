@@ -4,6 +4,7 @@ import com.example.blog.config.UploadProperties;
 import com.example.blog.service.UploadService;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -62,5 +63,18 @@ public class LocalUploadService implements UploadService {
       return null;
     }
     return new FileSystemResource(file.toFile());
+  }
+
+  @Override
+  public MediaType getMediaType(String filename) {
+    if (filename == null) {
+      return MediaType.APPLICATION_OCTET_STREAM;
+    }
+    String lower = filename.toLowerCase();
+    if (lower.endsWith(".png")) return MediaType.IMAGE_PNG;
+    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return MediaType.IMAGE_JPEG;
+    if (lower.endsWith(".gif")) return MediaType.IMAGE_GIF;
+    if (lower.endsWith(".webp")) return MediaType.parseMediaType("image/webp");
+    return MediaType.APPLICATION_OCTET_STREAM;
   }
 }
