@@ -25,8 +25,11 @@ Thumbs.db
 .factorypath
 
 # Local database dumps / backups
-blog_db_backup.sql
-*.sql
+/blog_db_backup.sql
+*.sql.bak
+*.dump
+/backups/
+/backup/
 
 # Local runtime data
 uploads/*
