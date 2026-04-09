@@ -33,7 +33,6 @@ logging:
   level:
     org.thymeleaf: DEBUG
 
-spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
