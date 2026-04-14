@@ -16,11 +16,11 @@ spring:
   thymeleaf:
     cache: false
   mail:
-    host: ${MAIL_HOST:smtp.qq.com}
-    port: ${MAIL_PORT:465}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    protocol: ${MAIL_PROTOCOL:smtps}
+    host: smtp.qq.com
+    port: 465
+    username: 2054469475@qq.com
+    password: qregcsizgzzjcbic
+    protocol: smtps
     properties:
       mail:
         smtp:

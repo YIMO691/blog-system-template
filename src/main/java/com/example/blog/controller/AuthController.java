@@ -2,9 +2,11 @@ package com.example.blog.controller;
 
 import com.example.blog.common.api.ApiResponses;
 import com.example.blog.dto.RegisterRequest;
+import com.example.blog.exception.BadRequestException;
 import com.example.blog.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -44,8 +46,12 @@ public class AuthController {
   @PostMapping("/email-code")
   @ResponseBody
   public Object sendEmailCode(@RequestParam String email) {
-    emailCodeService.sendCode(email);
-    return ApiResponses.successMessage("验证码发送成功");
+    try {
+      emailCodeService.sendCode(email);
+      return ResponseEntity.ok(ApiResponses.successMessage("验证码发送成功"));
+    } catch (BadRequestException ex) {
+      return ApiResponses.errorResponse(ex.getErrorCode(), ex.getMessage());
+    }
   }
 
   @GetMapping("/forgot")

@@ -1,5 +1,6 @@
 package com.example.blog.service.impl;
 
+import com.example.blog.exception.BadRequestException;
 import com.example.blog.service.EmailCodeService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -37,12 +38,12 @@ public class EmailCodeServiceImpl implements EmailCodeService {
   @Override
   public void sendCode(String email) {
     if (from == null || from.isBlank()) {
-      throw new IllegalStateException("mail_unconfigured");
+      throw new BadRequestException("邮件服务未配置，暂时无法发送验证码");
     }
     Entry e = store.get(email);
     Instant now = Instant.now();
     if (e != null && e.lastSent != null && now.isBefore(e.lastSent.plusSeconds(60))) {
-      throw new IllegalStateException("too_frequent");
+      throw new BadRequestException("验证码发送过于频繁，请稍后再试");
     }
     String code = String.format("%06d", random.nextInt(1_000_000));
     SimpleMailMessage message = new SimpleMailMessage();
@@ -50,7 +51,11 @@ public class EmailCodeServiceImpl implements EmailCodeService {
     message.setTo(email);
     message.setSubject("注册验证码");
     message.setText("您的验证码为 " + code + " ，5分钟内有效。");
-    mailSender.send(message);
+    try {
+      mailSender.send(message);
+    } catch (Exception ex) {
+      throw new BadRequestException("验证码发送失败，请稍后重试");
+    }
     Entry ne = new Entry();
     ne.code = code;
     ne.expireAt = now.plusSeconds(300);
