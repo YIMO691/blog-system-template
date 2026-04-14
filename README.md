@@ -1,427 +1,324 @@
-# Spring Boot 个人博客系统（基础模板）
+# Spring Boot 博客系统模板
 
-一个基于 Spring Boot 3 的轻量博客系统模板，内置文章发布与分类/标签/搜索、评论与审核、通知中心、邮箱验证码注册与找回密码、个人中心（账户设置）等常用能力，适合二次开发。UI 使用 Bootstrap 5，专注“开箱即用 + 易扩展”。
+一个基于 Spring Boot 3、Thymeleaf、Spring Security 和 MySQL 的博客系统模板，面向“单体应用 + 后台管理 + 二次开发”场景。项目已经具备文章管理、评论审核、通知中心、邮箱验证码注册/找回密码、个人中心、基础统计等能力，适合作为课程设计、毕业设计或中小型内容站点原型。
 
-## 功能总览
-- 文章
-  - 列表页双栏布局：左侧文章卡片、右侧分类侧边栏（快速筛选，保持当前排序）
-  - 首页展示最新 6 篇文章，提供醒目的“更多文章”按钮跳转列表
-  - 点赞与浏览量统计（详情页点赞按钮）
-  - 富文本内容渲染与图片上传（编辑页，支持插入并在正文展示）
-  - 分类、标签筛选与关键字搜索（搜索支持标题/正文/标签名命中）
-  - 排序：最新 | 最热（点赞）| 阅读最多（浏览量），可与分类/标签/搜索叠加，不分先后
-  - 标签多选：单篇文章最多 6 个标签（前端与后端双重限制）
-- 评论
-  - 详情页展示评论列表与回复表单
-  - 后台评论审核（通过/删除）
-- 通知中心
-  - 导航铃铛仅显示未读消息与数量
-  - 支持“全部标记为已读”“删除已读”
-  - 用户与管理员各自的通知页（未读/已读标签页）
+## 项目概览
+
+### 已实现能力
+
+- 文章系统
+  - 首页展示最新文章
+  - 文章列表支持分类、标签、关键字搜索
+  - 支持按最新、点赞数、浏览量排序
+  - 文章详情支持浏览量与点赞
+  - 管理员可创建、编辑、删除文章
+  - 编辑页支持本地图片上传并插入正文
+
+- 评论与通知
+  - 登录用户可发表评论与回复
+  - 普通用户评论默认进入审核流，管理员评论可直接通过
+  - 支持评论点赞
+  - 支持用户通知、管理员待办通知
+  - 支持全部已读、删除已读
+  - 文章点赞、评论点赞、评论提交与回复已支持异步局部更新
+  - 后台评论审核、删除已支持异步局部更新
+
 - 用户与安全
-  - 邮箱验证码注册（5 分钟有效，60 秒限频）
-  - 找回密码（邮箱验证码）+ 新旧密码不可相同
-  - 登录/注册页面美化与交互优化（密码可视、倒计时、输入校验）
-  - 个人中心（账户设置）：左右布局，包含
-    - 基本资料（昵称等）
-    - 密码设置（原/新/确认，前端一致性校验）
-    - 绑定信息（邮箱验证码变更、手机号绑定/解绑）
-    - 登录记录（时间/IP/UA/状态）
-    - 操作日志（时间/动作/详情）
-  - 登录记录严格接入 Spring Security 成功/失败处理器，精准记录真实登录事件
-  - 禁言标识：被禁言用户在个人信息中显示标记
-  - 基于角色的权限控制：ROLE_USER / ROLE_ADMIN
+  - Spring Security 表单登录
+  - 邮箱验证码注册
+  - 邮箱验证码找回密码
+  - 个人中心支持昵称、密码、邮箱、手机号维护
+  - 记录登录日志和操作日志
+  - 支持用户禁言、角色切换
+  - 个人中心资料保存已支持异步提交与局部反馈
+
 - 后台管理
-  - 仪表盘与基础统计（示例）
-  - 用户管理（禁言/解除禁言）
-  - 文章管理、评论审核
+  - 仪表盘
+  - 用户管理
+  - 文章管理
+  - 评论审核
+  - 基础统计页
+  - 用户管理、通知中心、文章删除已支持异步局部更新
+
+### 当前角色模型
+
+- `ROLE_USER`：普通用户，可浏览、评论、管理个人资料
+- `ROLE_ADMIN`：管理员身份，用于进入后台；具体后台能力由 `AdminPermission` 决定
+- `superAdmin`：超级管理员，拥有完整后台能力并可管理管理员
+
+当前实现中，管理员能力已拆分为独立权限集合，主要包括：
+
+- `ARTICLE_WRITE`
+- `ARTICLE_MANAGE`
+- `COMMENT_MODERATE`
+- `NOTIFICATION_MANAGE`
+- `STATS_VIEW`
+- `USER_MANAGE`
+
+默认通过后台“设为管理员”提升的账号，不再自动获得“文章写作”和“文章管理”权限；超级管理员仍保留全量权限。
 
 ## 技术栈
-- Spring Boot 3.x、Spring MVC、Thymeleaf
-- Spring Data JPA、Hibernate
-- Spring Security
-- MySQL + HikariCP
-- Bootstrap 5、Chart.js（统计图表示例）
 
-## 快速开始（开发环境）
-1) 创建数据库
+- 后端：Spring Boot 3.3.2、Spring MVC、Spring Data JPA、Hibernate
+- 安全：Spring Security
+- 视图：Thymeleaf、Bootstrap 5
+- 数据库：MySQL
+- 迁移：Flyway
+- 邮件：Spring Mail
+- 测试：JUnit 5、Spring Boot Test、H2
+- 构建：Maven
+
+## 架构分析
+
+### 优点
+
+- 分层比较清晰：`controller -> service -> repository -> entity`
+- 依赖选择稳妥，适合 Spring Boot 单体项目起步
+- 关键功能较完整，覆盖“内容站点 + 用户中心 + 后台管理”核心闭环
+- 已引入 Flyway、测试环境配置、CI 工作流，具备继续工程化的基础
+- 上传服务、登录日志、通知、评论审核等模块已经形成可复用模板
+
+### 适合的使用场景
+
+- 课程作业或毕业设计
+- 博客/资讯类站点原型
+- Spring Boot + Thymeleaf 教学示例
+- 单体后台管理系统的扩展示例
+
+### 当前主要限制
+
+- 验证码存储在应用内存中，重启后失效，也不适合多实例部署
+- 默认管理员账号由启动初始化写入，密码是固定值，生产环境不安全
+- 本地上传文件保存在服务器磁盘，适合开发和轻量部署，不适合大规模生产
+- 文档与实现曾出现过信息漂移，后续需要保持 README 与代码同步维护
+- 测试覆盖仍偏少，目前主要集中在启动验证和上传服务
+- 后台文章状态切换、通知下拉单条操作等交互仍可继续异步化
+
+## 项目结构
+
+```text
+src/
+├─ main/
+│  ├─ java/com/example/blog/
+│  │  ├─ common/        # 枚举与通用常量
+│  │  ├─ config/        # 安全、初始化、全局异常、配置属性
+│  │  ├─ controller/    # 前台控制器
+│  │  ├─ controller/admin/
+│  │  ├─ dto/           # 表单与页面交互对象
+│  │  ├─ entity/        # JPA 实体
+│  │  ├─ exception/     # 业务异常
+│  │  ├─ repository/    # 数据访问层
+│  │  ├─ security/      # 登录成功/失败处理器
+│  │  ├─ service/       # 业务接口
+│  │  └─ service/impl/  # 业务实现
+│  └─ resources/
+│     ├─ db/migration/  # Flyway 迁移脚本
+│     ├─ static/        # 静态资源
+│     ├─ templates/     # Thymeleaf 页面模板
+│     ├─ application.yml
+│     ├─ application-dev.yml
+│     ├─ application-prod.yml
+│     └─ application-example.yml
+└─ test/
+   ├─ java/
+   └─ resources/
+```
+
+## 核心模块说明
+
+### 文章模块
+
+- `ArticleController` 负责首页、列表、详情、编辑、图片上传等入口
+- `ArticleServiceImpl` 负责筛选、排序、摘要生成、点赞、浏览量等业务逻辑
+- 文章支持分类和标签，多条件组合查询主要通过 JPA Specification 实现
+- 后台文章删除已支持异步局部更新
+
+### 评论模块
+
+- 评论支持树形回复结构
+- 普通用户评论默认待审核
+- 管理员可在后台通过或删除评论
+- 评论点赞状态已改为批量查询，避免逐条 `exists` 带来的 N+1 查询倾向
+- 评论提交、回复、管理员删除评论均已支持异步局部刷新
+
+### 用户与认证模块
+
+- 认证基于 Spring Security 表单登录
+- 注册和找回密码依赖邮箱验证码
+- 登录成功和失败分别写入登录日志
+- 用户资料修改会写入操作日志
+- 个人中心中的昵称、密码、邮箱、手机号修改已支持异步提交与页内提示
+
+### 通知模块
+
+- 评论审核、角色变更、禁言等动作会触发通知
+- 前台用户和后台管理员各自有通知入口
+- 通知页“单条已读 / 全部已读 / 删除已读”已支持异步局部更新
+- 导航栏铃铛下拉中的“全部标记为已读”已支持异步更新角标与未读列表
+
+### 上传模块
+
+- 当前使用本地磁盘存储
+- 已做基础大小限制、扩展名白名单、MIME 校验和路径安全处理
+
+## 运行要求
+
+- JDK 17
+- Maven 3.9+
+- MySQL 8.x
+
+## 配置说明
+
+### Profile
+
+- `application.yml`：公共配置，默认激活 `dev`
+- `application-dev.yml`：开发环境配置
+- `application-prod.yml`：生产环境配置
+- `application-example.yml`：示例配置模板
+
+### 关键配置项
+
+- 数据源
+  - `SPRING_DATASOURCE_URL`
+  - `SPRING_DATASOURCE_USERNAME`
+  - `SPRING_DATASOURCE_PASSWORD`
+
+- 邮件
+  - `MAIL_HOST`
+  - `MAIL_PORT`
+  - `MAIL_USERNAME`
+  - `MAIL_PASSWORD`
+  - `MAIL_PROTOCOL`
+
+- 上传目录
+  - `APP_UPLOAD_DIR`
+
+说明：开发环境数据源建议通过环境变量注入，避免将本地真实数据库凭据直接提交到版本库。
+
+### 邮件说明
+
+邮箱验证码功能依赖 `spring.mail.username` 等邮件配置。如果未正确配置，验证码发送会失败。
+
+## 快速开始
+
+### 1. 创建数据库
+
 ```sql
 CREATE DATABASE blog_db CHARACTER SET utf8mb4;
 ```
 
-2) 配置数据库与基础参数  
-- 公共配置：`src/main/resources/application.yml`（端口、Multipart、日志、上传白名单等）
-- 开发环境：`src/main/resources/application-dev.yml`（本地 MySQL、JPA validate、Flyway）
-- 生产环境：`src/main/resources/application-prod.yml`（从环境变量读取数据源与邮件，JPA validate、Flyway）
+### 2. 配置应用
 
-3) 配置邮件（用于邮箱验证码）
-- 支持环境变量（推荐）或直接在 yml 中配置：
-  - MAIL_HOST（如 smtp.qq.com）
-  - MAIL_PORT（465 或 587）
-  - MAIL_USERNAME（发信邮箱账户）
-  - MAIL_PASSWORD（邮箱授权码）
-  - MAIL_PROTOCOL（smtps 或 smtp）
+建议以 `src/main/resources/application-example.yml` 为参考，补齐数据库和邮件配置。
 
-示例（QQ 邮箱，端口 465）：
-```yaml
-spring:
-  mail:
-    host: ${MAIL_HOST:smtp.qq.com}
-    port: ${MAIL_PORT:465}
-    username: ${MAIL_USERNAME:your@qq.com}
-    password: ${MAIL_PASSWORD:your-app-code}
-    protocol: ${MAIL_PROTOCOL:smtps}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          ssl:
-            enable: true
-```
+### 3. 启动项目
 
-4) 启动
 ```bash
-# 开发（dev）
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
-
-# 生产（prod）
-# 需注入 SPRING_DATASOURCE_URL/USERNAME/PASSWORD 等环境变量
-SPRING_PROFILES_ACTIVE=prod java -jar target/blog-*.jar
 ```
 
-访问地址：
-- 首页：http://localhost:8080/
-- 登录：http://localhost:8080/auth/login
-- 注册：http://localhost:8080/auth/register
-- 通知中心：导航栏铃铛下拉 / 用户页 / 管理员页
-- 后台：http://localhost:8080/admin （需管理员）
+默认访问地址：
 
-> 关于管理员账号  
-> 若项目内置 DataInitializer 会自动创建 admin 账号；若未创建，请在数据库中将目标用户的角色改为 `ROLE_ADMIN`，或按需补充初始化脚本。
+- 首页：`http://localhost:8080/`
+- 登录：`http://localhost:8080/auth/login`
+- 注册：`http://localhost:8080/auth/register`
+- 后台：`http://localhost:8080/admin`
 
-## 前端交互与样式亮点
-- 全站卡片与背景：更现代的卡片圆角与阴影，列表页单独覆盖为柔和背景
-- 首页右侧模块：分类以“标签样式”展示，悬停特效；最新评论昵称首字母头像 + 小号排版
-- 首页“更多文章”按钮：大号胶囊按钮，居中自适应，带阴影与悬停上浮
-- 文章列表
-  - 标题更突出（20px/600），悬停变蓝
-  - 标签展示区（点击跳转标签筛选，保持当前排序）
-  - 分组标题强化（左侧色条，滚动定位）
-- 页脚 Footer：统一片段，粘底布局（无内容时仍贴底）
+### 4. 构建打包
 
-## 主要页面与交互亮点
-- 导航栏
-  - 铃铛仅显示未读通知；无未读时显示“暂无未读消息”
-  - 一键“全部标记为已读”，入口“查看所有通知”
-- 首页
-  - 最新 6 篇文章展示，更多跳文章列表
-- 文章列表
-  - 分类分组展示（默认），滚动定位优化（避免被固定页眉遮挡）
-  - 排序选择：最新 / 最热 / 阅读最多（与分类/标签/搜索自由叠加）
-  - 侧边栏快速切换分类（保持当前排序），含“全部文章”“未分类”
-- 文章详情
-  - 返回列表按钮、点赞、浏览量、标签展示
-  - 评论列表与发表表单
-- 注册与登录
-  - 邮箱验证码注册（倒计时与错误提示）
-  - 登录/注册/找回密码均支持密码可视切换
-- 找回密码
-  - 邮箱验证码 + 新密码确认；新旧密码不能相同
-- 个人中心
-  - 左右分栏账户设置：基本资料 / 密码设置 / 绑定信息 / 登录记录 / 操作日志 / 危险区域
-  - 登录记录：时间、IP、UA、状态（由认证成功/失败处理器写入）
-  - 操作日志：记录账户关键操作（昵称/密码/邮箱/手机号/注销）
-- 通知页面
-  - 未读/已读分栏，支持查看、标记已读、批量操作
-
-## 路由与能力速览
-- 公开路由：`/`、`/articles`、`/articles/search`、`/articles/{slug}`、`/auth/**`
-- 需要登录：`/articles/editor/**`、`/profile/**`
-- 管理员：`/admin/**`
-- 文章列表参数：
-  - `category`（Long，可为 -1 表示未分类）、`tag`（String）、`sort`（latest/hot/views）、`page`
-- 搜索：`/articles/search?keyword=...&sort=latest|hot|views&page=...`
-
-## 数据模型（节选）
-- 文章 Article：标题、内容、分类（可空）、标签集合、浏览量、点赞、发布时间等
-- 分类 Category：name、description
-- 标签 Tag：name（与文章多对多）
-- 评论 Comment：content、article、user（可空）、创建时间、审核状态等
-- 通知 Notification：类型、目标用户、内容、链接、已读状态
-- 登录记录 LoginRecord：user（可空）、time、ip、ua、success
-- 操作日志 ActionLog：user、time、action、detail
-
-> 数据库迁移
-> 本分支已接入 Flyway，JPA 配置为 `ddl-auto: validate`。首次在已有库上运行时通过 `baseline-on-migrate: true` 做基线，后续按 `db/migration` 版本化迁移。
-
-## 登录记录与操作日志实现说明
-- Spring Security
-  - `LoginSuccessHandler`：在认证成功时写入 LoginRecord(success=true) 与 ActionLog("登录成功")
-  - `LoginFailureHandler`：在认证失败时写入 LoginRecord(success=false)，若能定位用户则写入 ActionLog("登录失败")
-- 其他账户操作在 ProfileController 中写入对应 ActionLog
-- 个人中心页面仅展示最近 20 条（可按需分页拓展）
-
-## 图片上传与正文渲染
-- 控制器仅负责鉴权与调用服务：`UploadService.storeImage/loadImage`
-- 服务实现包含：目录创建、大小限制、MIME/扩展名白名单校验、防路径穿越、随机文件名、类型识别返回 `Content-Type`
-- 编辑页支持本地图片上传后自动在正文插入 `<img>`，详情页按 HTML 渲染
-- 请确保存储位置与访问接口已在控制器中放行或加鉴权
-
-## 测试
-- 服务层：`LocalUploadServiceTest`
-  - 覆盖：正常上传、空文件、非法扩展名、非法 MIME、超大文件、缺失文件读取
-- 启动验证：`SmokeTest`（加载应用上下文）
-- 运行：
-  - `mvn test`
-
-## CI（GitHub Actions）
-- 默认工作流：Java 17 + Maven
-  - 执行 `mvn -B -ntp test` 与 `mvn -B -ntp -DskipTests package`
-  - 可在 Pull Request 中自动验证构建与测试
-
-## 搜索与筛选/排序组合
-- 搜索支持标题/正文/标签名模糊匹配
-- 排序（最新/最热/阅读最多）可与分类、标签、搜索自由组合，所有链接均保留当前组合条件
-
-## 常见问题
-- 邮件发送失败：`mail_unconfigured`
-  - 未配置 `spring.mail.username` 或邮件参数，请按上文“配置邮件”完成配置
-- 535 Authentication failed
-  - 授权码/账户错误，或未开启 SMTP 服务
-- 端口/协议不匹配
-  - 465 使用 smtps + ssl.enable=true；587 使用 smtp + starttls.enable=true
-- 无法找到相关文章（筛选 + 排序）
-  - 若显示“分类ID: x”被当作搜索词，请确保模板已使用 `filterLabel` 作为展示文案，排序按钮区分搜索/非搜索模式链接（本模板已修复）
-
-## 项目结构
-```
-src/
- ├─ main/
- │   ├─ java/com/example/blog/
- │   │   ├─ config/        # 安全、MVC等配置
- │   │   ├─ controller/    # 前台与后台控制器
- │   │   │   └─ admin/     # 后台控制器
- │   │   ├─ entity/        # JPA 实体（Article/Tag/Comment/...）
- │   │   ├─ repository/    # Spring Data JPA 仓储
- │   │   ├─ service/       # 业务服务与实现
- │   │   └─ security/      # 登录成功/失败处理器
- │   └─ resources/
- │       ├─ templates/     # Thymeleaf 模板（auth/article/admin/...）
- │       ├─ static/        # CSS/JS/图片
- │       └─ application.yml
-```
-
-## 配置与环境变量
-- Profiles
-  - `application.yml`：公共配置（含 `spring.profiles.active: dev`）
-  - `application-dev.yml`：本地数据库/邮件、`ddl-auto: validate`、`flyway.enabled: true`
-  - `application-prod.yml`：从环境变量读取数据库/邮件、`ddl-auto: validate`、`flyway.enabled: true`
-- 数据库（生产建议用环境变量）
-  - `SPRING_DATASOURCE_URL` / `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`
-- 邮件：`MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_PROTOCOL`
-- 上传目录：`APP_UPLOAD_DIR`（默认 `${user.dir}/uploads`）
-
-## 构建与运行
-- 构建：
-  - `mvn clean package`
-- 开发：
-  - `mvn spring-boot:run -Dspring-boot.run.profiles=dev`
-- 生产：
-  - `SPRING_PROFILES_ACTIVE=prod` 并注入数据源/邮件环境变量后运行 Jar
-  - 常用 JVM 参数：`-Xms512m -Xmx512m`、`-Dserver.port=8080`
-
-## 数据库迁移（Flyway）
-- 现有数据库首次接入：已启用 `baseline-on-migrate: true`，基线版本 `1`
-- 自定义迁移：在 `src/main/resources/db/migration/` 新增 `V{N}__{desc}.sql`
-- 示例：`V2__set_admin_role.sql`（将 admin 设为 `ROLE_ADMIN`、其余空角色补为 `ROLE_USER`）
-
-## 生产部署示例
-- 反向代理（Nginx）：
-  ```
-  server {
-    listen 80;
-    server_name your.domain.com;
-    location / {
-      proxy_pass http://127.0.0.1:8080;
-      proxy_set_header Host $host;
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-  }
-  ```
-- SSL：申请证书后将 `listen 443 ssl` 与 `ssl_certificate`/`ssl_certificate_key` 加入上面配置。
-- 数据库迁移：生产环境建议使用 Flyway/Liquibase 管理 SQL 迁移，避免 `ddl-auto` 修改结构。
-
-## 外网部署详细步骤（内网穿透方案）
-
-### 1. 注册 natapp 账号
-1. 访问：https://natapp.cn/
-2. 点击右上角 "注册"
-3. 填写邮箱、密码完成注册
-4. 登录账号
-
-### 2. 创建隧道
-1. 登录后进入 "购买隧道" 页面
-2. 选择 "免费隧道"（或者付费隧道，更稳定）
-3. 配置隧道信息：
-   - 隧道名称：随意填写（如：myblog）
-   - 隧道协议：选择 `http`
-   - 本地端口：填写 `8080`（项目端口）
-   - 域名：可以选择随机域名或自定义域名（需要付费）
-4. 点击 "购买"（免费隧道直接获取）
-
-### 3. 下载 natapp 客户端
-1. 进入 "我的隧道" 页面
-2. 找到刚创建的隧道
-3. 点击 "客户端下载"
-4. 根据系统选择下载：
-   - Windows：`natapp_windows_amd64.zip`
-   - Mac：`natapp_darwin_amd64.zip`
-   - Linux：`natapp_linux_amd64.zip`
-
-## 仓库规范与目录
-- 标准结构：仅保留 src/、pom.xml、README.md、.gitignore 等必要文件
-- IDE/本地文件不纳入版本库：.settings/、.vscode/、.classpath、.project、.factorypath
-- 上传目录不纳入版本库：uploads/*（仅保留占位 uploads/.gitkeep）
-- 根目录若出现 com/** 这类历史遗留副本，不再跟踪，源码以 src/main/java/** 为准
-
-## 外部化配置说明
-- 示例配置：src/main/resources/application-example.yml、.env.example
-- 支持通过环境变量或 profile 覆盖默认值（参考 Spring Boot Externalized Configuration）
-- 上传目录可配置：app.upload-dir 或 APP_UPLOAD_DIR，默认 ${user.dir}/uploads
-
-### 4. 获取 authtoken
-1. 在 "我的隧道" 页面
-2. 找到你的隧道
-3. 复制 **authtoken**（一串随机字符）
-
-### 5. 启动项目
-在终端中启动 Spring Boot 项目：
 ```bash
-cd blog-system-template
-mvn spring-boot:run
+mvn clean package
 ```
-确保项目在 `http://localhost:8080` 正常运行。
 
-### 6. 运行 natapp 客户端
-**Windows 系统：**
-1. 解压下载的 `natapp_windows_amd64.zip`
-2. 打开命令提示符（CMD）或 PowerShell
-3. 进入 natapp 解压目录
-4. 运行命令：
-   ```bash
-   natapp.exe -authtoken=你的authtoken
-   ```
+生产环境可通过以下方式启动：
 
-**Mac/Linux 系统：**
-1. 解压下载的压缩包
-2. 打开终端
-3. 进入 natapp 解压目录
-4. 运行命令：
-   ```bash
-   chmod +x natapp
-   ./natapp -authtoken=你的authtoken
-   ```
-
-### 7. 获取外网访问地址
-natapp 启动成功后，会显示类似信息：
-```
-Tunnel Status       online
-Version             2.3.9
-Forwarding          http://abc123.natappfree.cc -> http://127.0.0.1:8080
-Web Interface       http://127.0.0.1:4040
-Total Connections   0
-Avg Conn Time       0.00ms
-```
-其中 `http://abc123.natappfree.cc` 就是你的外网访问地址！
-
-### 8. 测试访问
-在浏览器中访问你的外网地址：
-- 首页：`http://abc123.natappfree.cc/`
-- 登录：`http://abc123.natappfree.cc/auth/login`
-- 后台：`http://abc123.natappfree.cc/admin`
-
-### 9. 保持隧道运行
-**Windows 后台运行：**
 ```bash
-start /b natapp.exe -authtoken=你的authtoken
+java -jar target/blog-system-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 ```
 
-**Mac/Linux 后台运行：**
+## 默认初始化数据
+
+项目启动时会自动检查并初始化：
+
+- 管理员账号：`admin`
+- 默认密码：`admin123456`
+- 默认分类：`默认分类`
+
+仅建议用于本地开发和演示环境，生产环境请改为安全的初始化方案。
+
+## 测试与 CI
+
+### 本地测试
+
 ```bash
-nohup ./natapp -authtoken=你的authtoken &
+mvn test
 ```
 
-### 10. 其他内网穿透服务
-| 服务 | 免费方案 | 优点 | 缺点 |
-|------|---------|------|------|
-| **natapp.cn** | 有免费隧道 | 国内访问快、操作简单 | 免费域名随机 |
-| **ngrok.cc** | 有免费隧道 | 稳定性好 | 免费隧道有限 |
-| **cloudflare tunnel** | 完全免费 | 无限流量、稳定 | 配置稍复杂 |
-| **花生壳** | 有免费版 | 老牌服务 | 免费版限制多 |
+当前已包含：
 
-### 11. 注意事项
-- 免费隧道的域名是随机的，每次重启会变化
-- 建议使用付费隧道获取固定域名
-- 内网穿透服务可能有访问速度限制，不建议用于生产环境
-- 确保本地网络稳定，避免断开连接
+- `SmokeTest`：验证 Spring 上下文能正常启动
+- `LocalUploadServiceTest`：验证本地上传服务的基本行为
 
-## 接口速查（选摘）
-- 认证与账户
-  - `POST /auth/login` 登录
-  - `POST /auth/register` 注册（邮箱验证码）
-  - `POST /auth/forgot` 找回密码（验证码）
-  - `POST /profile/update-nickname|password|email|phone` 账户设置
-- 文章与列表
-  - `GET /articles` 列表：参数 `category`（Long，-1=未分类）、`tag`（String）、`sort=latest|hot|views`、`page`
-  - `GET /articles/search?keyword=...&sort=...` 关键字搜索（标题/正文/标签名）
-  - `GET /articles/{slug}` 详情
-- 上传与图片
-  - `POST /upload/image` 图片上传（编辑页使用）
+### CI
 
-## 安全与日志
-- 登录记录
-  - 成功：由 `LoginSuccessHandler` 写入 `LoginRecord(success=true)`，并记录 `ActionLog("登录成功")`
-  - 失败：由 `LoginFailureHandler` 写入 `LoginRecord(success=false)`；若用户可识别，记录 `ActionLog("登录失败")`
-- 操作日志
-  - 在个人中心对昵称/密码/邮箱/手机号/注销等操作写入 `ActionLog`
-- 风控建议（可选扩展）
-  - 登录失败次数限制、IP/地区告警、短信/邮箱二次验证、验证码/限流（Redis）
+GitHub Actions 已配置基础流水线：
 
-## 自定义与主题
-- 样式集中于 `static/css/app.css` 与页面内联 `<style>` 块
-- 调整列表标题大小/颜色、按钮圆角与投影、卡片阴影等可直接在 CSS 中覆盖
-- 后台 Dashboard
-  - 当前仅保留 KPI 概览与系统信息；统计图表已移除
-  - 如需恢复图表：在 `admin/stats.html` 中添加对应 canvas 与脚本，并在 `AdminController` 注入数据
+- `mvn -B -ntp test`
+- `mvn -B -ntp -DskipTests package`
 
-## 性能优化建议
-- HikariCP 连接池参数按生产负载酌情调整
-- 页面长列表可做分页/懒加载
-- 统计类数据可加入本地缓存/Redis
-- 图片上传建议接入对象存储（S3、OSS 等），正文中使用外链
+## 整体建议
 
-## 代码风格与贡献
-- 命名简洁、方法职责单一
-- 控制器仅做路由与组装，业务下沉到 Service
-- PR 建议：附上变更说明、运行截图与影响范围
+### 优先级高
 
-## Commit Convention
+1. 安全配置外置化
+   - 避免在本地配置中保留真实数据库账号、密码
+   - 管理员默认密码不要写死在初始化逻辑中
 
-- init: project initialization
-- feat: new feature
-- fix: bug fix
-- refactor: code improvement
-- style: UI adjustment
-- docs: documentation update
-- chore: config/dependency update
+2. 验证码能力升级
+   - 当前验证码存在内存中，建议迁移到 Redis
+   - 同时补充过期清理、限流、失败次数控制
 
-## 开发建议与扩展方向
-- 富文本编辑器替换（Quill/TinyMCE/Editor.js）
-- 通知实时推送（WebSocket）
-- Redis 存储验证码与限流
-- 审计与风控：登录失败次数限制、账号冻结、异地登录提醒等
-- CI/CD：添加单元测试、GitHub Actions 或 Jenkins Pipeline
+3. 增加核心业务测试
+   - 补充用户注册、评论审核、文章发布、权限控制等服务层测试
+   - 为重要控制器补充集成测试
+
+4. 完善权限边界
+   - 当前已完成“角色”和“后台能力”解耦，但文章权限仍可继续细分授权方式
+   - 若未来支持作者体系，建议在管理员之外单独引入作者角色
+
+### 优先级中
+
+1. 优化查询性能
+   - 已完成评论点赞批量查询与后台统计按日聚合查询
+   - 列表、统计类接口仍可继续引入更明确的投影查询和聚合优化
+
+2. 提升部署能力
+   - 上传文件可迁移到 OSS、S3 或 MinIO
+   - 邮件、上传、缓存、日志等都建议外部化配置
+
+3. 提升可维护性
+   - 抽离统一响应和错误码
+   - 对 controller 中的部分权限判断和分支逻辑继续下沉到 service
+   - 补充更明确的 README、部署文档和接口说明
+
+4. 完成剩余异步交互
+   - 后台文章状态切换可继续扩展为异步按钮
+   - 通知下拉中的单条通知操作可继续做局部更新
+
+### 可扩展方向
+
+- 引入 Redis 做验证码、限流、热点缓存
+- 引入 WebSocket 或 SSE 做实时通知
+- 增加审计、封禁策略、异常登录提醒
+- 增加对象存储和 CDN
+- 增加 OpenAPI 文档或前后端分离接口层
+
+## 已知现状说明
+
+- 默认激活 `dev` 配置，部署生产环境时应显式指定 `prod`
+- 评论系统支持回复，但更深层级的复杂运营规则仍可继续完善
+- 当前项目更适合作为模板和二开基础，而不是直接无改造上线
 
 ## 许可证
-本模板主要用于学习与二次开发，按需添加许可证。
+
+当前仓库未显式声明许可证。若计划公开分发或团队协作，建议补充 `LICENSE` 文件。
