@@ -1,5 +1,6 @@
 package com.example.blog.config;
 
+import com.example.blog.common.AdminPermission;
 import com.example.blog.common.Role;
 import com.example.blog.entity.Category;
 import com.example.blog.entity.User;
@@ -22,15 +23,34 @@ public class DataInitializer implements CommandLineRunner {
 
   @Override
   public void run(String... args) {
-    if (!userRepository.existsByUsername("admin")) {
-      userRepository.save(User.builder()
-          .username("admin")
-          .nickname("最高管理员")
-          .passwordHash(passwordEncoder.encode("admin123456"))
-          .role(Role.ROLE_ADMIN)
-          .createdAt(Instant.now())
-          .build());
-    }
+    userRepository.findByUsername("admin")
+        .ifPresentOrElse(admin -> {
+          boolean dirty = false;
+          if (admin.getRole() != Role.ROLE_ADMIN) {
+            admin.setRole(Role.ROLE_ADMIN);
+            dirty = true;
+          }
+          if (!admin.isSuperAdmin()) {
+            admin.setSuperAdmin(true);
+            dirty = true;
+          }
+          if (!admin.getAdminPermissions().containsAll(AdminPermission.superAdminPermissions())) {
+            admin.grantAdminPermissions(AdminPermission.superAdminPermissions());
+            dirty = true;
+          }
+          if (dirty) {
+            userRepository.save(admin);
+          }
+        }, () -> userRepository.save(User.builder()
+            .username("admin")
+            .nickname("最高管理员")
+            .passwordHash(passwordEncoder.encode("admin123456"))
+            .role(Role.ROLE_ADMIN)
+            .superAdmin(true)
+            .adminPermissions(AdminPermission.superAdminPermissions())
+            .createdAt(Instant.now())
+            .build()));
+
     if (!categoryRepository.existsByNameIgnoreCase("默认分类")) {
       categoryRepository.save(Category.builder().name("默认分类").description("系统初始化分类").build());
     }

@@ -140,7 +140,7 @@ public class ProfileController {
     @org.springframework.transaction.annotation.Transactional
     public String deleteAccount(HttpServletRequest request) {
         User current = userService.getCurrentUserOrThrow();
-        if ("admin".equals(current.getUsername())) {
+        if (current.isSuperAdmin()) {
             return "redirect:/profile?error=cannot_delete_super_admin";
         }
         
