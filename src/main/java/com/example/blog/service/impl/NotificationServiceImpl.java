@@ -4,11 +4,13 @@ import com.example.blog.common.NotificationType;
 import com.example.blog.common.Role;
 import com.example.blog.entity.Notification;
 import com.example.blog.entity.User;
+import com.example.blog.exception.NotFoundException;
 import com.example.blog.repository.NotificationRepository;
 import com.example.blog.repository.UserRepository;
 import com.example.blog.service.NotificationService;
-import com.example.blog.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,7 +21,6 @@ public class NotificationServiceImpl implements NotificationService {
 
   private final NotificationRepository notificationRepository;
   private final UserRepository userRepository;
-  private final UserService userService;
 
   @Override
   public Notification notifyUser(Long userId, NotificationType type, String message, String link) {
@@ -63,13 +64,13 @@ public class NotificationServiceImpl implements NotificationService {
 
   @Override
   public List<Notification> listForCurrentUser() {
-    User current = userService.getCurrentUserOrThrow();
+    User current = getCurrentUserOrThrow();
     return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(current.getId());
   }
 
   @Override
   public long countUnreadForCurrentUser() {
-    User current = userService.getCurrentUserOrThrow();
+    User current = getCurrentUserOrThrow();
     return notificationRepository.countByRecipientIdAndReadFalse(current.getId());
   }
 
@@ -84,14 +85,23 @@ public class NotificationServiceImpl implements NotificationService {
   @Override
   @org.springframework.transaction.annotation.Transactional
   public void markAllAsReadForCurrentUser() {
-    User current = userService.getCurrentUserOrThrow();
+    User current = getCurrentUserOrThrow();
     notificationRepository.markAllReadByRecipientId(current.getId());
   }
 
   @Override
   @org.springframework.transaction.annotation.Transactional
   public void deleteReadForCurrentUser() {
-    User current = userService.getCurrentUserOrThrow();
+    User current = getCurrentUserOrThrow();
     notificationRepository.deleteReadByRecipientId(current.getId());
+  }
+
+  private User getCurrentUserOrThrow() {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth == null || auth.getName() == null || "anonymousUser".equals(auth.getName())) {
+      throw new NotFoundException("未登录");
+    }
+    return userRepository.findByUsername(auth.getName())
+        .orElseThrow(() -> new NotFoundException("用户不存在"));
   }
 }
