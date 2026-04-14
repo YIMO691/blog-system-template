@@ -9,6 +9,7 @@ public interface NotificationService {
   Notification notifyUser(Long userId, NotificationType type, String message, String link);
   Notification notifyAdmin(NotificationType type, String message, String link);
   List<Notification> listForCurrentUser();
+  long countUnreadForCurrentUser();
   void markAsRead(Long id);
   void markAllAsReadForCurrentUser();
   void deleteReadForCurrentUser();

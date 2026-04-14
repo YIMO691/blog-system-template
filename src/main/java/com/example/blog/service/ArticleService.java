@@ -16,8 +16,10 @@ public interface ArticleService {
   Article createOrUpdate(Long id, ArticleForm form);
   void delete(Long id);
 
+  record LikeResult(boolean liked, int likes) {}
+
   void increaseViewCount(Long id);
-  void toggleLike(Long id);
+  LikeResult toggleLike(Long id);
   boolean isLikedByCurrentUser(Long id);
 
   java.util.List<Article> listDrafts(Long authorId);

@@ -9,6 +9,12 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.HashMap;
+import java.util.Map;
+
 @Controller
 @RequestMapping("/admin")
 @RequiredArgsConstructor
@@ -41,12 +47,26 @@ public class AdminController {
   }
 
   @PostMapping("/users/{id}/toggle-admin")
-  public String toggleAdmin(@PathVariable Long id) {
+  @ResponseBody
+  public Object toggleAdmin(@PathVariable Long id,
+                            @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     if (!userService.getCurrentUserOrThrow().canManageUsers()) {
+      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
+            "ok", false,
+            "message", "no_permission"
+        ));
+      }
       return "redirect:/admin?error=no_permission";
     }
     com.example.blog.entity.User u = userRepository.findById(id).orElseThrow();
     if (u.isSuperAdmin()) {
+      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+        return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
+            "ok", false,
+            "message", "cannot_modify_super_admin"
+        ));
+      }
       return "redirect:/admin/users?error=cannot_modify_super_admin";
     }
 
@@ -65,16 +85,33 @@ public class AdminController {
         "你的用户角色已更新",
         "/profile"
     );
+    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+      return org.springframework.http.ResponseEntity.ok(userStatePayload(u));
+    }
     return "redirect:/admin/users";
   }
 
   @PostMapping("/users/{id}/toggle-mute")
-  public String toggleMute(@PathVariable Long id) {
+  @ResponseBody
+  public Object toggleMute(@PathVariable Long id,
+                           @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     if (!userService.getCurrentUserOrThrow().canManageUsers()) {
+      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
+            "ok", false,
+            "message", "no_permission"
+        ));
+      }
       return "redirect:/admin?error=no_permission";
     }
     com.example.blog.entity.User u = userRepository.findById(id).orElseThrow();
     if (u.isSuperAdmin()) {
+      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+        return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
+            "ok", false,
+            "message", "cannot_mute_super_admin"
+        ));
+      }
       return "redirect:/admin/users?error=cannot_mute_super_admin";
     }
 
@@ -86,6 +123,9 @@ public class AdminController {
         u.isMuted() ? "你的账号已被禁言" : "你的账号已解除禁言",
         "/profile"
     );
+    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+      return org.springframework.http.ResponseEntity.ok(userStatePayload(u));
+    }
     return "redirect:/admin/users";
   }
 
@@ -148,20 +188,24 @@ public class AdminController {
 
     // Last N Days New Articles & Comments
     int days = (range == 30) ? 30 : 7;
-    java.time.ZoneId zone = java.time.ZoneId.systemDefault();
-    java.time.LocalDate today = java.time.LocalDate.now(zone);
+    ZoneId zone = ZoneId.systemDefault();
+    LocalDate today = LocalDate.now(zone);
+    LocalDate startDate = today.minusDays(days - 1L);
+    Instant start = startDate.atStartOfDay(zone).toInstant();
+    Instant end = today.plusDays(1L).atStartOfDay(zone).toInstant();
+
+    Map<String, Long> articleCountByDate = toDateCountMap(articleRepository.countCreatedGroupedByDate(start, end));
+    Map<String, Long> commentCountByDate = toDateCountMap(commentRepository.countCreatedGroupedByDate(start, end));
+
     java.util.List<String> lastDaysLabels = new java.util.ArrayList<>();
     java.util.List<Long> lastDaysArticles = new java.util.ArrayList<>();
     java.util.List<Long> lastDaysComments = new java.util.ArrayList<>();
     for (int i = days - 1; i >= 0; i--) {
-      java.time.LocalDate d = today.minusDays(i);
-      java.time.Instant start = d.atStartOfDay(zone).toInstant();
-      java.time.Instant end = d.plusDays(1).atStartOfDay(zone).toInstant();
-      long ac = articleRepository.findByCreatedAtBetween(start, end).size();
-      long cc = commentRepository.findByCreatedAtBetween(start, end).size();
-      lastDaysLabels.add(d.toString());
-      lastDaysArticles.add(ac);
-      lastDaysComments.add(cc);
+      LocalDate d = today.minusDays(i);
+      String key = d.toString();
+      lastDaysLabels.add(key);
+      lastDaysArticles.add(articleCountByDate.getOrDefault(key, 0L));
+      lastDaysComments.add(commentCountByDate.getOrDefault(key, 0L));
     }
     model.addAttribute("range", days);
     model.addAttribute("last7DaysLabels", lastDaysLabels);
@@ -177,6 +221,30 @@ public class AdminController {
     return "admin/stats";
   }
 
+  private Map<String, Long> toDateCountMap(java.util.List<Object[]> rows) {
+    Map<String, Long> result = new HashMap<>();
+    for (Object[] row : rows) {
+      if (row == null || row.length < 2 || row[0] == null || row[1] == null) {
+        continue;
+      }
+      result.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
+    }
+    return result;
+  }
+
+  private java.util.Map<String, Object> userStatePayload(com.example.blog.entity.User user) {
+    return java.util.Map.of(
+        "ok", true,
+        "id", user.getId(),
+        "isAdmin", user.isAdmin(),
+        "muted", user.isMuted(),
+        "superAdmin", user.isSuperAdmin(),
+        "permissionLabels", user.getAdminPermissions().stream()
+            .map(AdminPermission::getLabel)
+            .toList()
+    );
+  }
+
   @GetMapping("/articles")
   public String articles(Model model, @RequestParam(defaultValue = "0") int page) {
     if (!userService.getCurrentUserOrThrow().canManageArticles()) {
@@ -187,11 +255,25 @@ public class AdminController {
   }
 
   @PostMapping("/articles/{id}/delete")
-  public String deleteArticle(@PathVariable Long id) {
+  @ResponseBody
+  public Object deleteArticle(@PathVariable Long id,
+                              @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     if (!userService.getCurrentUserOrThrow().canManageArticles()) {
+      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
+            "ok", false,
+            "message", "no_permission"
+        ));
+      }
       return "redirect:/admin?error=no_permission";
     }
     articleService.delete(id);
+    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+      return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
+          "ok", true,
+          "id", id
+      ));
+    }
     return "redirect:/admin/articles";
   }
 
@@ -205,20 +287,47 @@ public class AdminController {
   }
 
   @PostMapping("/comments/{id}/approve")
-  public String approve(@PathVariable Long id) {
+  @ResponseBody
+  public Object approve(@PathVariable Long id,
+                        @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     if (!userService.getCurrentUserOrThrow().canModerateComments()) {
+      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
+            "ok", false,
+            "message", "no_permission"
+        ));
+      }
       return "redirect:/admin?error=no_permission";
     }
     commentService.approve(id);
+    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+      return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
+          "ok", true
+      ));
+    }
     return "redirect:/admin/comments";
   }
 
   @PostMapping("/comments/{id}/delete")
-  public String delete(@PathVariable Long id, @RequestParam(required = false) String redirect) {
+  @ResponseBody
+  public Object delete(@PathVariable Long id,
+                       @RequestParam(required = false) String redirect,
+                       @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     if (!userService.getCurrentUserOrThrow().canModerateComments()) {
+      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
+            "ok", false,
+            "message", "no_permission"
+        ));
+      }
       return "redirect:/admin?error=no_permission";
     }
     commentService.delete(id);
+    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+      return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
+          "ok", true
+      ));
+    }
     if (redirect != null && !redirect.isBlank()) {
       return "redirect:" + redirect;
     }
@@ -235,11 +344,26 @@ public class AdminController {
   }
 
   @PostMapping("/notifications/{id}/read")
-  public String read(@PathVariable Long id, @RequestParam(required = false) String redirect) {
+  @ResponseBody
+  public Object read(@PathVariable Long id,
+                     @RequestParam(required = false) String redirect,
+                     @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     if (!userService.getCurrentUserOrThrow().canManageAdminNotifications()) {
+      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
+            "ok", false,
+            "message", "no_permission"
+        ));
+      }
       return "redirect:/admin?error=no_permission";
     }
     notificationService.markAsRead(id);
+    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+      return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
+          "ok", true,
+          "unreadCount", notificationService.countUnreadForCurrentUser()
+      ));
+    }
     if (redirect != null && !redirect.isBlank()) {
       return "redirect:" + redirect;
     }

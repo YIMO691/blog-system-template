@@ -29,13 +29,15 @@
         <li class="nav-item dropdown me-2" th:if="${#authorization.expression('isAuthenticated()')}">
           <a class="nav-link dropdown-toggle position-relative" href="#" id="noticeDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-bell"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" th:if="${notificationsUnread != null and notificationsUnread > 0}" th:text="${notificationsUnread}">0</span>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                  th:classappend="${notificationsUnread != null and notificationsUnread > 0} ? '' : ' d-none'"
+                  th:text="${notificationsUnread != null ? notificationsUnread : 0}">0</span>
           </a>
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="noticeDropdown" style="min-width: 320px;">
-            <li th:if="${notificationsUnread == null or notificationsUnread == 0}">
+            <li class="nav-notification-empty" th:classappend="${notificationsUnread == null or notificationsUnread == 0} ? '' : ' d-none'">
               <span class="dropdown-item text-muted text-center py-3">暂无未读消息</span>
             </li>
-            <li th:each="n : ${notificationsRecent}" th:if="${!n.read}">
+            <li class="nav-notification-item" th:each="n : ${notificationsRecent}" th:if="${!n.read}">
               <div class="dropdown-item d-flex align-items-center py-2 border-bottom">
                 <i class="bi me-2 bi-envelope-exclamation-fill text-primary fs-5"></i>
                 <div class="flex-grow-1" style="min-width: 0;">
@@ -46,8 +48,8 @@
                 </div>
               </div>
             </li>
-            <li th:if="${notificationsUnread != null and notificationsUnread > 0}">
-              <form th:action="@{/notifications/read-all}" method="post" class="px-3 py-2 text-center bg-light">
+            <li class="nav-notification-read-all" th:classappend="${notificationsUnread != null and notificationsUnread > 0} ? '' : ' d-none'">
+              <form th:action="@{/notifications/read-all}" method="post" class="px-3 py-2 text-center bg-light nav-notification-read-all-form">
                 <button class="btn btn-sm btn-link text-decoration-none" type="submit">全部标记为已读</button>
               </form>
             </li>
@@ -90,5 +92,54 @@
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  (function () {
+    function getCsrfToken() {
+      return document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || null;
+    }
+    function getCsrfHeaderName() {
+      return document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+    }
+    function buildHeaders() {
+      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      const token = getCsrfToken();
+      const headerName = getCsrfHeaderName();
+      if (token && headerName) headers[headerName] = token;
+      return headers;
+    }
+    function updateNavNotifications(unreadCount) {
+      const noticeDropdown = document.getElementById('noticeDropdown');
+      if (!noticeDropdown) return;
+      const badge = noticeDropdown.parentElement.querySelector('.badge');
+      const emptyState = document.querySelector('.nav-notification-empty');
+      const unreadItems = document.querySelectorAll('.nav-notification-item');
+      const readAllRow = document.querySelector('.nav-notification-read-all');
+      if (badge) {
+        badge.textContent = unreadCount;
+        badge.classList.toggle('d-none', unreadCount <= 0);
+      }
+      unreadItems.forEach(function (item) { item.remove(); });
+      if (emptyState) emptyState.classList.toggle('d-none', unreadCount > 0);
+      if (readAllRow) readAllRow.classList.toggle('d-none', unreadCount <= 0);
+    }
+    document.querySelectorAll('.nav-notification-read-all-form').forEach(function (form) {
+      if (form.dataset.bound === 'true') return;
+      form.dataset.bound = 'true';
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+        try {
+          const response = await fetch(form.action, { method: 'POST', headers: buildHeaders() });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error('read_all_failed');
+          updateNavNotifications(data.unreadCount ?? 0);
+        } finally {
+          if (button) button.disabled = false;
+        }
+      });
+    });
+  })();
+</script>
 </body>
 </html>

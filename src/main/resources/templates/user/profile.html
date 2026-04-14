@@ -11,6 +11,7 @@
       <i class="bi bi-slash-circle me-1"></i>已禁言
     </span>
   </div>
+  <div id="profile-feedback" class="alert d-none"></div>
 
   <div th:if="${param.success != null}" class="alert alert-success shadow-sm alert-dismissible fade show">
     <i class="bi bi-check-circle-fill me-2"></i>
@@ -81,10 +82,10 @@
               <div class="mb-3" th:if="${user.muted}">
                 <span class="badge bg-danger"><i class="bi bi-slash-circle me-1"></i>当前账号已被禁言，部分操作受限</span>
               </div>
-              <form th:action="@{/profile/update-nickname}" method="post">
+              <form th:action="@{/profile/update-nickname}" method="post" id="nicknameForm">
                 <label class="form-label text-muted small text-uppercase">昵称</label>
                 <div class="input-group">
-                  <input type="text" name="nickname" class="form-control" th:value="${user.nickname}" required placeholder="设置您的昵称">
+                  <input type="text" name="nickname" id="nicknameInput" class="form-control" th:value="${user.nickname}" required placeholder="设置您的昵称">
                   <button class="btn btn-outline-primary" type="submit"><i class="bi bi-check-lg"></i></button>
                 </div>
               </form>
@@ -136,8 +137,8 @@
               <div class="mb-3">
                 <label class="form-label text-muted small text-uppercase">当前邮箱</label>
                 <div>
-                  <span class="fw-bold" th:text="${user.email != null ? user.email : '未绑定'}"></span>
-                  <span class="badge bg-success ms-2" th:if="${user.emailVerified}"><i class="bi bi-check2-circle me-1"></i>已验证</span>
+                  <span class="fw-bold" id="currentEmailText" th:text="${user.email != null ? user.email : '未绑定'}"></span>
+                  <span class="badge bg-success ms-2" id="currentEmailVerifiedBadge" th:classappend="${user.emailVerified} ? '' : ' d-none'"><i class="bi bi-check2-circle me-1"></i>已验证</span>
                 </div>
               </div>
               <form th:action="@{/profile/update-email}" method="post" class="mb-4" id="emailForm">
@@ -154,7 +155,7 @@
               </form>
               <div class="mb-2">
                 <label class="form-label text-muted small text-uppercase">当前手机号</label>
-                <div class="fw-bold" th:text="${user.phone != null ? user.phone : '未绑定'}"></div>
+                <div class="fw-bold" id="currentPhoneText" th:text="${user.phone != null ? user.phone : '未绑定'}"></div>
               </div>
               <form th:action="@{/profile/update-phone}" method="post" id="phoneForm">
                 <label class="form-label">修改手机号（可留空解除绑定）</label>
@@ -250,8 +251,48 @@ const emailInput = document.getElementById('newEmailInput');
 const sendBtn = document.getElementById('sendEmailCodeBtn');
 const phoneForm = document.getElementById('phoneForm');
 const emailForm = document.getElementById('emailForm');
-const currentEmail = /*[[${user.email}]]*/ null;
-const currentPhone = /*[[${user.phone}]]*/ null;
+let currentEmail = /*[[${user.email}]]*/ null;
+let currentPhone = /*[[${user.phone}]]*/ null;
+const nicknameForm = document.getElementById('nicknameForm');
+const nicknameInput = document.getElementById('nicknameInput');
+const currentEmailText = document.getElementById('currentEmailText');
+const currentEmailVerifiedBadge = document.getElementById('currentEmailVerifiedBadge');
+const currentPhoneText = document.getElementById('currentPhoneText');
+function getCsrfToken(){ return document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || null; }
+function getCsrfHeaderName(){ return document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN'; }
+function buildHeaders(){
+  const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+  const token = getCsrfToken();
+  const headerName = getCsrfHeaderName();
+  if (token && headerName) headers[headerName] = token;
+  return headers;
+}
+function showProfileFeedback(message, level){
+  const box = document.getElementById('profile-feedback');
+  if (!box) return;
+  box.className = 'alert alert-' + level;
+  box.textContent = message;
+  box.classList.remove('d-none');
+}
+async function submitProfileForm(form, successHandler){
+  const button = form.querySelector('button[type="submit"]');
+  if (button) button.disabled = true;
+  try {
+    const response = await fetch(form.action, {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: new URLSearchParams(new FormData(form))
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.message || 'submit_failed');
+    if (typeof successHandler === 'function') successHandler(data);
+    showProfileFeedback(data.message || '保存成功', 'success');
+  } catch (e) {
+    showProfileFeedback(e.message && !e.message.includes('Unexpected') ? e.message : '保存失败，请稍后重试', 'danger');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
 function togglePassword(id, btn){
   const input = document.getElementById(id);
   if (!input) return;
@@ -279,12 +320,8 @@ if (emailInput && sendBtn){
     }
     const fd = new FormData();
     fd.append('email', v);
-    const token = document.querySelector('meta[name=\"_csrf\"]').getAttribute('content');
-    const headerName = document.querySelector('meta[name=\"_csrf_header\"]').getAttribute('content');
-    const headers = {};
-    if (token && headerName) headers[headerName] = token;
     sendBtn.disabled = true;
-    const resp = await fetch('/auth/email-code', { method: 'POST', headers, body: fd });
+    const resp = await fetch('/auth/email-code', { method: 'POST', headers: buildHeaders(), body: fd });
     try {
       const data = await resp.json();
       if (!data.ok) {
@@ -318,6 +355,15 @@ if (phoneForm){
       return false;
     }
   });
+  phoneForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    submitProfileForm(phoneForm, function(data){
+      currentPhone = data.phone || null;
+      currentPhoneText.textContent = data.phone ? data.phone : '未绑定';
+      const input = phoneForm.querySelector('input[name="phone"]');
+      if (input) input.value = data.phone || '';
+    });
+  });
 }
 const passwordForm = document.getElementById('passwordForm');
 if (passwordForm){
@@ -329,6 +375,34 @@ if (passwordForm){
       alert('两次输入的新密码不一致');
       return false;
     }
+  });
+  passwordForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    const np = document.getElementById('newPassword')?.value || '';
+    const cp = document.getElementById('confirmPassword')?.value || '';
+    if (np !== cp){
+      showProfileFeedback('两次输入的新密码不一致', 'danger');
+      return false;
+    }
+    submitProfileForm(passwordForm, function(){
+      passwordForm.reset();
+    });
+  });
+}
+if (nicknameForm){
+  nicknameForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    submitProfileForm(nicknameForm);
+  });
+}
+if (emailForm){
+  emailForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    submitProfileForm(emailForm, function(data){
+      currentEmail = data.email || null;
+      currentEmailText.textContent = data.email || '未绑定';
+      currentEmailVerifiedBadge.classList.toggle('d-none', !data.emailVerified);
+    });
   });
 }
 </script>

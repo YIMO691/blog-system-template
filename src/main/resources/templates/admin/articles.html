@@ -6,6 +6,7 @@
 
 <div class="container">
   <h2 class="mb-3">文章管理</h2>
+  <div id="admin-article-feedback" class="alert d-none"></div>
 
   <table class="table table-striped">
     <thead>
@@ -14,7 +15,7 @@
     </tr>
     </thead>
     <tbody>
-    <tr th:each="a : ${page.content}">
+    <tr th:each="a : ${page.content}" class="article-row" th:attr="data-article-id=${a.id}">
       <td th:text="${a.id}"></td>
       <td th:text="${a.title}"></td>
       <td>
@@ -27,7 +28,7 @@
       <td>
         <div class="btn-group btn-group-sm">
           <a class="btn btn-outline-primary" th:href="@{/articles/editor/{id}(id=${a.id})}">编辑</a>
-          <form th:action="@{/admin/articles/{id}/delete(id=${a.id})}" method="post" 
+          <form th:action="@{/admin/articles/{id}/delete(id=${a.id})}" method="post" class="admin-article-delete-form"
                 onsubmit="return confirm('确定要删除这篇文章吗？')">
             <button type="submit" class="btn btn-outline-danger" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">删除</button>
           </form>
@@ -51,5 +52,51 @@
   </div>
 </div>
 <div th:replace="~{fragments/footer :: footer}"></div>
+<script>
+  (function () {
+    function getCsrfToken() {
+      return document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || null;
+    }
+    function getCsrfHeaderName() {
+      return document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+    }
+    function buildHeaders() {
+      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      const token = getCsrfToken();
+      const headerName = getCsrfHeaderName();
+      if (token && headerName) headers[headerName] = token;
+      return headers;
+    }
+    function showFeedback(message, level) {
+      const box = document.getElementById('admin-article-feedback');
+      if (!box) return;
+      box.className = 'alert alert-' + level;
+      box.textContent = message;
+      box.classList.remove('d-none');
+    }
+    document.querySelectorAll('.admin-article-delete-form').forEach(function (form) {
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const row = form.closest('.article-row');
+        const button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: buildHeaders()
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.message || 'delete_failed');
+          if (row) row.remove();
+          showFeedback('文章已删除', 'success');
+        } catch (e) {
+          showFeedback('删除失败，请稍后重试', 'danger');
+        } finally {
+          if (button) button.disabled = false;
+        }
+      });
+    });
+  })();
+</script>
 </body>
 </html>

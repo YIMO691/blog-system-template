@@ -3,6 +3,7 @@ package com.example.blog.controller;
 import com.example.blog.dto.ArticleForm;
 import com.example.blog.dto.CommentForm;
 import com.example.blog.entity.Article;
+import com.example.blog.entity.Comment;
 import com.example.blog.service.ArticleService;
 import com.example.blog.service.CommentService;
 import com.example.blog.service.TaxonomyService;
@@ -116,30 +117,73 @@ public class ArticleController {
   }
 
   @PostMapping("/{id}/like")
-  public String likeArticle(@PathVariable Long id) {
-    articleService.toggleLike(id);
+  @ResponseBody
+  public Object likeArticle(@PathVariable Long id,
+                            @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
+    ArticleService.LikeResult result = articleService.toggleLike(id);
+    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+      return Map.of(
+          "ok", true,
+          "liked", result.liked(),
+          "likes", result.likes()
+      );
+    }
     Article a = articleService.getById(id);
     return "redirect:/articles/" + a.getSlug() + "?liked=true";
   }
 
   @PostMapping("/{slug}/comments")
-  public String addComment(@PathVariable String slug,
+  public Object addComment(@PathVariable String slug,
                            @ModelAttribute("commentForm") @Valid CommentForm form,
                            BindingResult br,
-                           Model model) {
+                           Model model,
+                           @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     Article a = articleService.getPublishedBySlug(slug);
+    boolean ajaxRequest = "XMLHttpRequest".equalsIgnoreCase(requestedWith);
     if (br.hasErrors()) {
+      if (ajaxRequest) {
+        String message = br.getFieldError() != null ? br.getFieldError().getDefaultMessage() : "评论内容校验失败";
+        return ResponseEntity.badRequest().body(Map.of(
+            "ok", false,
+            "message", message
+        ));
+      }
       model.addAttribute("article", a);
       model.addAttribute("comments", commentService.listApprovedByArticle(a.getId()));
       return "article/detail";
     }
-    commentService.addComment(a.getId(), form);
+    Comment comment = commentService.addComment(a.getId(), form);
+    if (ajaxRequest) {
+      return ResponseEntity.ok(Map.of(
+          "ok", true,
+          "approved", comment.isApproved(),
+          "message", comment.isApproved() ? "评论发布成功" : "评论已提交，待审核后显示"
+      ));
+    }
     return "redirect:/articles/" + slug + "?commented";
   }
 
+  @GetMapping("/{slug}/comments/fragment")
+  public String commentsFragment(@PathVariable String slug, Model model) {
+    Article a = articleService.getPublishedBySlug(slug);
+    model.addAttribute("article", a);
+    model.addAttribute("comments", commentService.listApprovedByArticle(a.getId()));
+    return "fragments/comment-section :: content";
+  }
+
   @PostMapping("/{slug}/comments/{id}/like")
-  public String likeComment(@PathVariable String slug, @PathVariable Long id) {
-    commentService.likeComment(id);
+  @ResponseBody
+  public Object likeComment(@PathVariable String slug,
+                            @PathVariable Long id,
+                            @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
+    CommentService.LikeResult result = commentService.likeComment(id);
+    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+      return Map.of(
+          "ok", true,
+          "liked", result.liked(),
+          "likes", result.likes()
+      );
+    }
     return "redirect:/articles/" + slug + "?liked=true#comment-" + id;
   }
 

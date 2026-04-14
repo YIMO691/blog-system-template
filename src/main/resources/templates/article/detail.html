@@ -20,12 +20,13 @@
     
     <span class="ms-3"><i class="bi bi-eye"></i> <span th:text="${article.views}">0</span></span>
     
-    <form th:action="@{/articles/{id}/like(id=${article.id})}" method="post" class="d-inline ms-2">
-      <button type="submit" class="btn btn-sm" th:classappend="${likedByCurrentUser} ? 'btn-primary' : 'btn-outline-primary'">
-        <i class="bi" th:classappend="${likedByCurrentUser} ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'"></i> 
-        <span th:text="${article.likes}">0</span>
-      </button>
-    </form>
+    <button type="button"
+            class="btn btn-sm d-inline-flex align-items-center article-like-btn ms-2"
+            th:attr="data-url=@{/articles/{id}/like(id=${article.id})},data-liked=${likedByCurrentUser}"
+            th:classappend="${likedByCurrentUser} ? 'btn-primary' : 'btn-outline-primary'">
+      <i class="bi me-1" th:classappend="${likedByCurrentUser} ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'"></i>
+      <span class="like-count" th:text="${article.likes}">0</span>
+    </button>
 
     <!-- Edit/Delete buttons for Author or Admin -->
     <div class="ms-auto" th:if="${#authorization.expression('isAuthenticated()')}">
@@ -52,18 +53,18 @@
 
   <hr/>
   <h4 class="mb-3">评论</h4>
-
-  <div th:if="${comments.size() == 0}" class="text-muted mb-3">暂无评论</div>
-
-  <!-- Comments Tree -->
-  <div th:replace="~{fragments/comment-tree :: list(${comments})}"></div>
+  <div id="comment-feedback" class="alert d-none"></div>
+  <div id="comments-container"
+       th:attr="data-refresh-url=@{/articles/{slug}/comments/fragment(slug=${article.slug})}">
+    <th:block th:replace="~{fragments/comment-section :: content}"></th:block>
+  </div>
 
   <!-- Main comment form -->
   <div class="card mt-4" th:if="${#authorization.expression('isAuthenticated()')}">
     <div class="card-body">
       <h5 class="card-title">发表评论</h5>
       <form th:action="@{/articles/{slug}/comments(slug=${article.slug})}"
-            th:object="${commentForm}" method="post">
+            th:object="${commentForm}" method="post" class="comment-async-form">
         <div class="mb-3 text-muted small">
           您将以登录身份发表评论。
         </div>
@@ -71,6 +72,7 @@
           <label class="form-label">内容</label>
           <textarea class="form-control" rows="4" th:field="*{content}"></textarea>
           <div class="text-danger small" th:errors="*{content}"></div>
+          <div class="text-danger small async-form-error mt-1 d-none"></div>
         </div>
         <button class="btn btn-primary" type="submit">提交</button>
       </form>
@@ -82,5 +84,189 @@
   </div>
 </div>
 <div th:replace="~{fragments/footer :: footer}"></div>
+<script>
+  (function () {
+    function getCsrfToken() {
+      return document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || null;
+    }
+
+    function getCsrfHeaderName() {
+      return document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+    }
+
+    function updateLikeButton(button, liked, likes) {
+      const icon = button.querySelector('i');
+      const count = button.querySelector('.like-count');
+      button.dataset.liked = String(liked);
+      button.classList.toggle('btn-primary', liked);
+      button.classList.toggle('btn-outline-primary', !liked);
+      if (icon) {
+        icon.classList.toggle('bi-hand-thumbs-up-fill', liked);
+        icon.classList.toggle('bi-hand-thumbs-up', !liked);
+      }
+      if (count) {
+        count.textContent = likes;
+      }
+    }
+
+    function buildHeaders() {
+      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      const csrfToken = getCsrfToken();
+      const csrfHeaderName = getCsrfHeaderName();
+      if (csrfToken && csrfHeaderName) {
+        headers[csrfHeaderName] = csrfToken;
+      }
+      return headers;
+    }
+
+    function showCommentFeedback(message, level) {
+      const box = document.getElementById('comment-feedback');
+      if (!box) return;
+      box.className = 'alert alert-' + level;
+      box.textContent = message;
+      box.classList.remove('d-none');
+    }
+
+    function clearFormError(form) {
+      const errorEl = form.querySelector('.async-form-error');
+      if (!errorEl) return;
+      errorEl.textContent = '';
+      errorEl.classList.add('d-none');
+    }
+
+    function showFormError(form, message) {
+      const errorEl = form.querySelector('.async-form-error');
+      if (!errorEl) {
+        showCommentFeedback(message, 'danger');
+        return;
+      }
+      errorEl.textContent = message;
+      errorEl.classList.remove('d-none');
+    }
+
+    async function refreshComments() {
+      const container = document.getElementById('comments-container');
+      if (!container) return;
+      const response = await fetch(container.dataset.refreshUrl, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (!response.ok) {
+        throw new Error('refresh_failed');
+      }
+      container.innerHTML = await response.text();
+      initInteractiveElements(container);
+    }
+
+    async function bindLikeButton(button) {
+      if (button.dataset.bound === 'true') return;
+      button.dataset.bound = 'true';
+      button.addEventListener('click', async function () {
+        if (button.disabled) return;
+        button.disabled = true;
+        try {
+          const response = await fetch(button.dataset.url, {
+            method: 'POST',
+            headers: buildHeaders()
+          });
+          if (!response.ok) {
+            throw new Error('request_failed');
+          }
+          const data = await response.json();
+          if (!data.ok) {
+            throw new Error('like_failed');
+          }
+          updateLikeButton(button, data.liked, data.likes);
+        } catch (e) {
+          window.location.href = '/auth/login';
+        } finally {
+          button.disabled = false;
+        }
+      });
+    }
+
+    function bindCommentForm(form) {
+      if (form.dataset.bound === 'true') return;
+      form.dataset.bound = 'true';
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        clearFormError(form);
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+          submitButton.disabled = true;
+        }
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: buildHeaders(),
+            body: new URLSearchParams(new FormData(form))
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) {
+            throw new Error(data.message || 'submit_failed');
+          }
+          form.reset();
+          if (data.approved) {
+            await refreshComments();
+            showCommentFeedback(data.message, 'success');
+          } else {
+            if (!form.classList.contains('d-none')) {
+              form.classList.add('d-none');
+            }
+            showCommentFeedback(data.message, 'warning');
+          }
+        } catch (error) {
+          const message = error.message === 'request_failed' ? '提交失败，请稍后重试' : error.message;
+          if (message.includes('Unexpected')) {
+            showFormError(form, '提交失败，请稍后重试');
+          } else {
+            showFormError(form, message);
+          }
+        } finally {
+          if (submitButton) {
+            submitButton.disabled = false;
+          }
+        }
+      });
+    }
+
+    function bindCommentDeleteForm(form) {
+      if (form.dataset.bound === 'true') return;
+      form.dataset.bound = 'true';
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+          submitButton.disabled = true;
+        }
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: buildHeaders()
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) {
+            throw new Error(data.message || 'delete_failed');
+          }
+          await refreshComments();
+          showCommentFeedback('评论已删除', 'success');
+        } catch (error) {
+          showCommentFeedback('删除失败，请稍后重试', 'danger');
+        } finally {
+          if (submitButton) {
+            submitButton.disabled = false;
+          }
+        }
+      });
+    }
+
+    function initInteractiveElements(root) {
+      root.querySelectorAll('.article-like-btn, .comment-like-btn').forEach(bindLikeButton);
+      root.querySelectorAll('.comment-async-form').forEach(bindCommentForm);
+      root.querySelectorAll('.async-comment-delete-form').forEach(bindCommentDeleteForm);
+    }
+
+    initInteractiveElements(document);
+  })();
+</script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 
 <div class="container">
   <h2 class="mb-3">用户管理</h2>
+  <div id="admin-user-feedback" class="alert d-none"></div>
 
   <div th:if="${param.error}" class="alert alert-danger" th:text="${param.error}"></div>
 
@@ -16,26 +17,26 @@
     </tr>
     </thead>
     <tbody>
-    <tr th:each="u : ${users}">
+    <tr th:each="u : ${users}" class="user-row" th:attr="data-user-id=${u.id}">
       <td th:text="${u.id}"></td>
       <td th:text="${u.username}"></td>
       <td>
-        <span class="badge bg-dark" th:if="${u.superAdmin}">超级管理员</span>
-        <span class="badge bg-primary" th:if="${u.role.name() == 'ROLE_ADMIN'}">管理员</span>
-        <span class="badge bg-secondary" th:if="${u.role.name() == 'ROLE_USER'}">普通用户</span>
-        <span class="badge bg-danger" th:if="${u.muted}">已禁言</span>
-        <div class="mt-2" th:if="${u.role.name() == 'ROLE_ADMIN' and !u.adminPermissions.isEmpty()}">
-          <span class="badge text-bg-light border me-1 mb-1" th:each="perm : ${u.adminPermissions}" th:text="${perm.label}">权限</span>
+        <span class="badge bg-dark super-admin-badge" th:classappend="${u.superAdmin} ? '' : ' d-none'">超级管理员</span>
+        <span class="badge bg-primary admin-role-badge" th:classappend="${u.role.name() == 'ROLE_ADMIN'} ? '' : ' d-none'">管理员</span>
+        <span class="badge bg-secondary user-role-badge" th:classappend="${u.role.name() == 'ROLE_USER'} ? '' : ' d-none'">普通用户</span>
+        <span class="badge bg-danger muted-badge" th:classappend="${u.muted} ? '' : ' d-none'">已禁言</span>
+        <div class="mt-2 permissions-container" th:classappend="${u.role.name() == 'ROLE_ADMIN' and !u.adminPermissions.isEmpty()} ? '' : ' d-none'">
+          <span class="badge text-bg-light border me-1 mb-1 permission-badge" th:each="perm : ${u.adminPermissions}" th:text="${perm.label}">权限</span>
         </div>
       </td>
       <td th:text="${#temporals.format(u.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
       <td>
-        <form th:if="${!u.superAdmin}" th:action="@{/admin/users/{id}/toggle-admin(id=${u.id})}" method="post" style="display:inline;">
-          <button type="submit" class="btn btn-sm" th:classappend="${u.role.name() == 'ROLE_ADMIN'} ? 'btn-outline-danger' : 'btn-outline-success'"
+        <form th:if="${!u.superAdmin}" th:action="@{/admin/users/{id}/toggle-admin(id=${u.id})}" method="post" class="admin-user-action-form d-inline">
+          <button type="submit" class="btn btn-sm toggle-admin-btn" th:classappend="${u.role.name() == 'ROLE_ADMIN'} ? 'btn-outline-danger' : 'btn-outline-success'"
                   th:text="${u.role.name() == 'ROLE_ADMIN'} ? '撤职' : '设为管理员'"></button>
         </form>
-        <form th:if="${!u.superAdmin}" th:action="@{/admin/users/{id}/toggle-mute(id=${u.id})}" method="post" style="display:inline;">
-          <button type="submit" class="btn btn-sm" th:classappend="${u.muted} ? 'btn-outline-success' : 'btn-outline-warning'"
+        <form th:if="${!u.superAdmin}" th:action="@{/admin/users/{id}/toggle-mute(id=${u.id})}" method="post" class="admin-user-action-form d-inline">
+          <button type="submit" class="btn btn-sm toggle-mute-btn" th:classappend="${u.muted} ? 'btn-outline-success' : 'btn-outline-warning'"
                   th:text="${u.muted} ? '解除禁言' : '禁言'"></button>
         </form>
       </td>
@@ -48,5 +49,98 @@
   </div>
 </div>
 <div th:replace="~{fragments/footer :: footer}"></div>
+<script>
+  (function () {
+    function getCsrfToken() {
+      return document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || null;
+    }
+
+    function getCsrfHeaderName() {
+      return document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+    }
+
+    function buildHeaders() {
+      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      const token = getCsrfToken();
+      const headerName = getCsrfHeaderName();
+      if (token && headerName) {
+        headers[headerName] = token;
+      }
+      return headers;
+    }
+
+    function showFeedback(message, level) {
+      const box = document.getElementById('admin-user-feedback');
+      if (!box) return;
+      box.className = 'alert alert-' + level;
+      box.textContent = message;
+      box.classList.remove('d-none');
+    }
+
+    function updateUserRow(row, data) {
+      const superAdminBadge = row.querySelector('.super-admin-badge');
+      const adminBadge = row.querySelector('.admin-role-badge');
+      const userBadge = row.querySelector('.user-role-badge');
+      const mutedBadge = row.querySelector('.muted-badge');
+      const permissionsContainer = row.querySelector('.permissions-container');
+      const toggleAdminBtn = row.querySelector('.toggle-admin-btn');
+      const toggleMuteBtn = row.querySelector('.toggle-mute-btn');
+
+      if (superAdminBadge) superAdminBadge.classList.toggle('d-none', !data.superAdmin);
+      if (adminBadge) adminBadge.classList.toggle('d-none', !data.isAdmin);
+      if (userBadge) userBadge.classList.toggle('d-none', data.isAdmin);
+      if (mutedBadge) mutedBadge.classList.toggle('d-none', !data.muted);
+
+      if (permissionsContainer) {
+        const labels = Array.isArray(data.permissionLabels) ? data.permissionLabels : [];
+        permissionsContainer.innerHTML = labels
+          .map(function (label) {
+            return '<span class="badge text-bg-light border me-1 mb-1 permission-badge">' + label + '</span>';
+          })
+          .join('');
+        permissionsContainer.classList.toggle('d-none', !data.isAdmin || labels.length === 0);
+      }
+
+      if (toggleAdminBtn) {
+        toggleAdminBtn.textContent = data.isAdmin ? '撤职' : '设为管理员';
+        toggleAdminBtn.classList.toggle('btn-outline-danger', data.isAdmin);
+        toggleAdminBtn.classList.toggle('btn-outline-success', !data.isAdmin);
+      }
+
+      if (toggleMuteBtn) {
+        toggleMuteBtn.textContent = data.muted ? '解除禁言' : '禁言';
+        toggleMuteBtn.classList.toggle('btn-outline-success', data.muted);
+        toggleMuteBtn.classList.toggle('btn-outline-warning', !data.muted);
+      }
+    }
+
+    document.querySelectorAll('.admin-user-action-form').forEach(function (form) {
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const row = form.closest('.user-row');
+        const button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: buildHeaders()
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) {
+            throw new Error(data.message || 'action_failed');
+          }
+          if (row) {
+            updateUserRow(row, data);
+          }
+          showFeedback('用户状态已更新', 'success');
+        } catch (error) {
+          showFeedback('操作失败，请稍后重试', 'danger');
+        } finally {
+          if (button) button.disabled = false;
+        }
+      });
+    });
+  })();
+</script>
 </body>
 </html>

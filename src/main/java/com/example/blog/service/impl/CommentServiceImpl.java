@@ -20,10 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -49,24 +49,14 @@ public class CommentServiceImpl implements CommentService {
       } catch (Exception ignored) {}
     }
 
-    Set<Long> likedCommentIds = new java.util.HashSet<>();
-    if (currentUserId != null) {
-      // Ideally fetch in batch, but for now we can iterate or use a custom query
-      // For simplicity/performance trade-off, let's just fetch all likes for this user on these comments
-      // But we don't have that method readily available. 
-      // Let's iterate for now, or assume comments list is small. 
-      // Optimization: fetch all likes by user and comment IDs.
-      // Since we don't have that repo method yet, let's loop. 
-      // Better: add findByUserIdAndCommentIdIn to repo.
-      // For now, let's just do individual checks or leave it simple.
-      // Actually, let's just loop and check `commentLikeRepository.exists...` 
-      // This causes N+1 queries. Better to fetch.
-      // Let's stick to the simplest working solution first.
-      for (Comment c : comments) {
-        if (commentLikeRepository.existsByCommentIdAndUserId(c.getId(), currentUserId)) {
-          likedCommentIds.add(c.getId());
-        }
-      }
+    Set<Long> likedCommentIds = new HashSet<>();
+    if (currentUserId != null && !comments.isEmpty()) {
+      List<Long> commentIds = comments.stream()
+          .map(Comment::getId)
+          .toList();
+      commentLikeRepository.findByUserIdAndCommentIdIn(currentUserId, commentIds).stream()
+          .map(like -> like.getComment().getId())
+          .forEach(likedCommentIds::add);
     }
 
     // Map ID -> DTO
@@ -177,25 +167,32 @@ public class CommentServiceImpl implements CommentService {
   }
 
   @Override
+  @Transactional
   public void delete(Long commentId) {
-    if (!commentRepository.existsById(commentId)) {
-      throw new NotFoundException("评论不存在");
-    }
-    Comment c = commentRepository.findById(commentId).orElse(null);
-    commentRepository.deleteById(commentId);
-    if (c != null && c.getUser() != null) {
+    Comment c = commentRepository.findById(commentId)
+        .orElseThrow(() -> new NotFoundException("评论不存在"));
+
+    Long userId = c.getUser() != null ? c.getUser().getId() : null;
+    String articleSlug = c.getArticle().getSlug();
+    List<Long> commentIdsToDelete = new ArrayList<>();
+    collectCommentTreeIds(c, commentIdsToDelete);
+
+    commentLikeRepository.deleteByCommentIdIn(commentIdsToDelete);
+    commentRepository.delete(c);
+
+    if (userId != null) {
       notificationService.notifyUser(
-          c.getUser().getId(),
+          userId,
           com.example.blog.common.NotificationType.COMMENT_DELETED,
           "你的评论已被删除",
-          "/articles/" + c.getArticle().getSlug()
+          "/articles/" + articleSlug
       );
     }
   }
 
   @Override
   @Transactional
-  public void likeComment(Long commentId) {
+  public CommentService.LikeResult likeComment(Long commentId) {
     Comment c = commentRepository.findById(commentId)
         .orElseThrow(() -> new NotFoundException("评论不存在"));
     
@@ -207,7 +204,7 @@ public class CommentServiceImpl implements CommentService {
       commentLikeRepository.deleteByCommentIdAndUserId(commentId, current.getId());
       c.setLikes(Math.max(0, c.getLikes() - 1));
       commentRepository.save(c);
-      return;
+      return new CommentService.LikeResult(false, c.getLikes());
     }
 
     // Record like
@@ -219,5 +216,13 @@ public class CommentServiceImpl implements CommentService {
 
     c.setLikes(c.getLikes() + 1);
     commentRepository.save(c);
+    return new CommentService.LikeResult(true, c.getLikes());
+  }
+
+  private void collectCommentTreeIds(Comment comment, List<Long> ids) {
+    ids.add(comment.getId());
+    for (Comment reply : comment.getReplies()) {
+      collectCommentTreeIds(reply, ids);
+    }
   }
 }

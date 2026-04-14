@@ -26,5 +26,14 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
       """)
   java.util.List<Object[]> topCommentedArticles();
 
+  @org.springframework.data.jpa.repository.Query("""
+      SELECT function('date', c.createdAt), COUNT(c)
+      FROM Comment c
+      WHERE c.createdAt >= :start AND c.createdAt < :end
+      GROUP BY function('date', c.createdAt)
+      ORDER BY function('date', c.createdAt)
+      """)
+  java.util.List<Object[]> countCreatedGroupedByDate(java.time.Instant start, java.time.Instant end);
+
   java.util.List<Comment> findByCreatedAtBetween(java.time.Instant start, java.time.Instant end);
 }

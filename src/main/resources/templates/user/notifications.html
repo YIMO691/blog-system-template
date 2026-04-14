@@ -4,6 +4,8 @@
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
 <div class="container" style="max-width: 860px;">
+  <div id="notification-feedback" class="alert d-none"></div>
+  <div id="notifications-page-content">
   <div class="card shadow-sm border-0">
     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center">
@@ -11,10 +13,10 @@
         <span class="fw-bold">我的通知</span>
       </div>
       <div>
-        <form th:action="@{/notifications/delete-read}" method="post" class="d-inline">
+        <form th:action="@{/notifications/delete-read}" method="post" class="d-inline notification-bulk-form">
           <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash me-1"></i>删除已读</button>
         </form>
-        <form th:action="@{/notifications/read-all}" method="post" class="d-inline ms-2">
+        <form th:action="@{/notifications/read-all}" method="post" class="d-inline ms-2 notification-bulk-form">
           <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-check2-all me-1"></i>全部已读</button>
         </form>
       </div>
@@ -53,7 +55,7 @@
               </div>
               <div class="ms-auto d-flex align-items-center">
                 <a class="btn btn-outline-primary btn-sm me-2" th:if="${n.link != null}" th:href="${n.link}">查看</a>
-                <form th:action="@{/profile/notifications/{id}/read(id=${n.id})}" method="post" class="d-inline">
+                <form th:action="@{/profile/notifications/{id}/read(id=${n.id})}" method="post" class="d-inline notification-read-form">
                   <button class="btn btn-primary btn-sm" type="submit">标记已读</button>
                 </form>
               </div>
@@ -94,6 +96,88 @@
   <div class="mt-4">
     <a class="btn btn-outline-secondary rounded-pill px-4" th:href="@{/profile}"><i class="bi bi-arrow-left me-1"></i>返回个人中心</a>
   </div>
+  </div>
 </div>
+<script>
+  (function () {
+    function getCsrfToken() {
+      return document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || null;
+    }
+    function getCsrfHeaderName() {
+      return document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+    }
+    function buildHeaders() {
+      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      const token = getCsrfToken();
+      const headerName = getCsrfHeaderName();
+      if (token && headerName) headers[headerName] = token;
+      return headers;
+    }
+    function showFeedback(message, level) {
+      const box = document.getElementById('notification-feedback');
+      if (!box) return;
+      box.className = 'alert alert-' + level;
+      box.textContent = message;
+      box.classList.remove('d-none');
+    }
+    function updateNavUnreadCount(unreadCount) {
+      const badge = document.querySelector('#noticeDropdown + .dropdown-menu, #noticeDropdown');
+      const countBadge = document.querySelector('#noticeDropdown').parentElement.querySelector('.badge');
+      if (countBadge) {
+        countBadge.textContent = unreadCount;
+        countBadge.classList.toggle('d-none', unreadCount <= 0);
+      }
+    }
+    async function refreshPageContent() {
+      const response = await fetch(window.location.pathname, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!response.ok) throw new Error('refresh_failed');
+      const html = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const incoming = doc.getElementById('notifications-page-content');
+      const current = document.getElementById('notifications-page-content');
+      if (incoming && current) {
+        current.innerHTML = incoming.innerHTML;
+        bindNotificationActions();
+      }
+    }
+    async function handleFormSubmit(form, successMessage) {
+      const button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+      try {
+        const response = await fetch(form.action, { method: 'POST', headers: buildHeaders() });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || 'action_failed');
+        await refreshPageContent();
+        updateNavUnreadCount(data.unreadCount ?? 0);
+        showFeedback(successMessage, 'success');
+      } catch (e) {
+        showFeedback('操作失败，请稍后重试', 'danger');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+    function bindNotificationActions() {
+      document.querySelectorAll('#notifications-page-content .notification-read-form').forEach(function (form) {
+        if (form.dataset.bound === 'true') return;
+        form.dataset.bound = 'true';
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          handleFormSubmit(form, '通知已标记为已读');
+        });
+      });
+      document.querySelectorAll('#notifications-page-content .notification-bulk-form').forEach(function (form) {
+        if (form.dataset.bound === 'true') return;
+        form.dataset.bound = 'true';
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          const successMessage = form.action.includes('delete-read') ? '已删除所有已读通知' : '已全部标记为已读';
+          handleFormSubmit(form, successMessage);
+        });
+      });
+    }
+    bindNotificationActions();
+  })();
+</script>
 </body>
 </html>

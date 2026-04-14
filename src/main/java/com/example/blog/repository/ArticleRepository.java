@@ -6,7 +6,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.Optional;
@@ -50,6 +49,15 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
 
   @org.springframework.data.jpa.repository.Query("SELECT COALESCE(c.name, '未分类') AS name, COUNT(a) FROM Article a LEFT JOIN a.category c GROUP BY c.name ORDER BY COUNT(a) DESC")
   java.util.List<Object[]> countGroupedByCategory();
+
+  @org.springframework.data.jpa.repository.Query("""
+      SELECT function('date', a.createdAt), COUNT(a)
+      FROM Article a
+      WHERE a.createdAt >= :start AND a.createdAt < :end
+      GROUP BY function('date', a.createdAt)
+      ORDER BY function('date', a.createdAt)
+      """)
+  java.util.List<Object[]> countCreatedGroupedByDate(java.time.Instant start, java.time.Instant end);
 
   java.util.List<Article> findByCreatedAtBetween(java.time.Instant start, java.time.Instant end);
 }

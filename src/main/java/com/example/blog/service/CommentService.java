@@ -7,11 +7,13 @@ import com.example.blog.entity.Comment;
 import java.util.List;
 
 public interface CommentService {
+  record LikeResult(boolean liked, int likes) {}
+
   List<CommentDto> listApprovedByArticle(Long articleId);
   Comment addComment(Long articleId, CommentForm form);
   List<Comment> listPending();
   List<Comment> listRecent(int limit);
   void approve(Long commentId);
   void delete(Long commentId);
-  void likeComment(Long commentId);
+  LikeResult likeComment(Long commentId);
 }

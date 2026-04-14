@@ -293,7 +293,7 @@ public class ArticleServiceImpl implements ArticleService {
 
   @Override
   @Transactional
-  public void toggleLike(Long id) {
+  public ArticleService.LikeResult toggleLike(Long id) {
     Article a = articleRepository.findById(id).orElseThrow(() -> new NotFoundException("文章不存在"));
     User currentUser = userService.getCurrentUserOrThrow();
 
@@ -301,12 +301,15 @@ public class ArticleServiceImpl implements ArticleService {
       // Unlike
       articleLikeRepository.deleteByArticleIdAndUserId(id, currentUser.getId());
       a.setLikes(Math.max(0, a.getLikes() - 1));
+      articleRepository.save(a);
+      return new ArticleService.LikeResult(false, a.getLikes());
     } else {
       // Like
       articleLikeRepository.save(ArticleLike.builder().article(a).user(currentUser).build());
       a.setLikes(a.getLikes() + 1);
+      articleRepository.save(a);
+      return new ArticleService.LikeResult(true, a.getLikes());
     }
-    articleRepository.save(a);
   }
 
   @Override

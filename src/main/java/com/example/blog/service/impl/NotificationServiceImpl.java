@@ -68,6 +68,12 @@ public class NotificationServiceImpl implements NotificationService {
   }
 
   @Override
+  public long countUnreadForCurrentUser() {
+    User current = userService.getCurrentUserOrThrow();
+    return notificationRepository.countByRecipientIdAndReadFalse(current.getId());
+  }
+
+  @Override
   public void markAsRead(Long id) {
     Notification n = notificationRepository.findById(id).orElse(null);
     if (n == null) return;
