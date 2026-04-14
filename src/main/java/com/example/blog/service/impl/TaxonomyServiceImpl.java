@@ -6,6 +6,8 @@ import com.example.blog.repository.CategoryRepository;
 import com.example.blog.repository.TagRepository;
 import com.example.blog.service.TaxonomyService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -19,16 +21,19 @@ public class TaxonomyServiceImpl implements TaxonomyService {
   private final TagRepository tagRepository;
 
   @Override
+  @Cacheable(cacheNames = "taxonomy:categories")
   public List<Category> listCategories() {
     return categoryRepository.findAll();
   }
 
   @Override
+  @Cacheable(cacheNames = "taxonomy:tags")
   public List<Tag> listTags() {
     return tagRepository.findAll();
   }
 
   @Override
+  @CacheEvict(cacheNames = "taxonomy:tags", allEntries = true)
   public Set<Tag> resolveTags(Set<String> tagNames) {
     if (tagNames == null || tagNames.isEmpty()) return new LinkedHashSet<>();
     Set<String> normalized = tagNames.stream()
@@ -54,6 +59,7 @@ public class TaxonomyServiceImpl implements TaxonomyService {
   }
 
   @Override
+  @CacheEvict(cacheNames = "taxonomy:categories", allEntries = true)
   public Category createCategory(String name) {
     if (name == null || name.isBlank()) return null;
     return categoryRepository.findByNameIgnoreCase(name)

@@ -1,6 +1,9 @@
 package com.example.blog.controller.admin;
 
 import com.example.blog.common.AdminPermission;
+import com.example.blog.common.api.ApiResponses;
+import com.example.blog.exception.BadRequestException;
+import com.example.blog.exception.ForbiddenException;
 import com.example.blog.repository.ArticleRepository;
 import com.example.blog.service.CommentService;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +34,7 @@ public class AdminController {
 
   @GetMapping
   public String dashboard() {
-    if (!userService.getCurrentUserOrThrow().canAccessAdmin()) {
+    if (!canAccess(() -> userService.assertCanAccessAdmin())) {
       return "redirect:/?error=no_permission";
     }
     return "admin/dashboard";
@@ -39,7 +42,7 @@ public class AdminController {
 
   @GetMapping("/users")
   public String users(Model model) {
-    if (!userService.getCurrentUserOrThrow().canManageUsers()) {
+    if (!canAccess(() -> userService.assertCanManageUsers())) {
       return "redirect:/admin?error=no_permission";
     }
     model.addAttribute("users", userRepository.findAll());
@@ -50,88 +53,53 @@ public class AdminController {
   @ResponseBody
   public Object toggleAdmin(@PathVariable Long id,
                             @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-    if (!userService.getCurrentUserOrThrow().canManageUsers()) {
-      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
-            "ok", false,
-            "message", "no_permission"
-        ));
+    boolean ajaxRequest = isAjaxRequest(requestedWith);
+    try {
+      com.example.blog.entity.User user = userService.toggleAdminRole(id);
+      if (ajaxRequest) {
+        return ApiResponses.success("用户角色已更新", userStatePayload(user));
+      }
+      return "redirect:/admin/users";
+    } catch (ForbiddenException ex) {
+      if (ajaxRequest) {
+        throw ex;
       }
       return "redirect:/admin?error=no_permission";
-    }
-    com.example.blog.entity.User u = userRepository.findById(id).orElseThrow();
-    if (u.isSuperAdmin()) {
-      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-        return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-            "ok", false,
-            "message", "cannot_modify_super_admin"
-        ));
+    } catch (BadRequestException ex) {
+      if (ajaxRequest) {
+        throw ex;
       }
       return "redirect:/admin/users?error=cannot_modify_super_admin";
     }
-
-    if (u.getRole() == com.example.blog.common.Role.ROLE_ADMIN) {
-      u.setRole(com.example.blog.common.Role.ROLE_USER);
-      u.setSuperAdmin(false);
-      u.getAdminPermissions().clear();
-    } else {
-      u.setRole(com.example.blog.common.Role.ROLE_ADMIN);
-      u.grantAdminPermissions(AdminPermission.defaultAdminPermissions());
-    }
-    userRepository.save(u);
-    notificationService.notifyUser(
-        u.getId(),
-        com.example.blog.common.NotificationType.USER_ROLE_CHANGED,
-        "你的用户角色已更新",
-        "/profile"
-    );
-    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-      return org.springframework.http.ResponseEntity.ok(userStatePayload(u));
-    }
-    return "redirect:/admin/users";
   }
 
   @PostMapping("/users/{id}/toggle-mute")
   @ResponseBody
   public Object toggleMute(@PathVariable Long id,
                            @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-    if (!userService.getCurrentUserOrThrow().canManageUsers()) {
-      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
-            "ok", false,
-            "message", "no_permission"
-        ));
+    boolean ajaxRequest = isAjaxRequest(requestedWith);
+    try {
+      com.example.blog.entity.User user = userService.toggleMute(id);
+      if (ajaxRequest) {
+        return ApiResponses.success(user.isMuted() ? "用户已被禁言" : "用户已解除禁言", userStatePayload(user));
+      }
+      return "redirect:/admin/users";
+    } catch (ForbiddenException ex) {
+      if (ajaxRequest) {
+        throw ex;
       }
       return "redirect:/admin?error=no_permission";
-    }
-    com.example.blog.entity.User u = userRepository.findById(id).orElseThrow();
-    if (u.isSuperAdmin()) {
-      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-        return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-            "ok", false,
-            "message", "cannot_mute_super_admin"
-        ));
+    } catch (BadRequestException ex) {
+      if (ajaxRequest) {
+        throw ex;
       }
       return "redirect:/admin/users?error=cannot_mute_super_admin";
     }
-
-    u.setMuted(!u.isMuted());
-    userRepository.save(u);
-    notificationService.notifyUser(
-        u.getId(),
-        u.isMuted() ? com.example.blog.common.NotificationType.USER_MUTED : com.example.blog.common.NotificationType.USER_UNMUTED,
-        u.isMuted() ? "你的账号已被禁言" : "你的账号已解除禁言",
-        "/profile"
-    );
-    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-      return org.springframework.http.ResponseEntity.ok(userStatePayload(u));
-    }
-    return "redirect:/admin/users";
   }
 
   @GetMapping("/stats")
   public String stats(Model model, @RequestParam(defaultValue = "7") int range) {
-    if (!userService.getCurrentUserOrThrow().canViewStats()) {
+    if (!canAccess(() -> userService.assertCanViewStats())) {
       return "redirect:/admin?error=no_permission";
     }
     // Article Stats
@@ -161,12 +129,12 @@ public class AdminController {
     model.addAttribute("categoryCounts", categoryCounts);
 
     // Top 5 Articles by Views / Likes
-    var topViews = articleRepository.findTop5ByPublishedTrueOrderByViewsDesc();
-    var topLikes = articleRepository.findTop5ByPublishedTrueOrderByLikesDesc();
-    model.addAttribute("topViewsTitles", topViews.stream().map(com.example.blog.entity.Article::getTitle).toList());
-    model.addAttribute("topViewsValues", topViews.stream().map(a -> a.getViews()).toList());
-    model.addAttribute("topLikesTitles", topLikes.stream().map(com.example.blog.entity.Article::getTitle).toList());
-    model.addAttribute("topLikesValues", topLikes.stream().map(a -> a.getLikes()).toList());
+    var topViews = articleRepository.findTop5ProjectedByPublishedTrueOrderByViewsDesc(PageRequest.of(0, 5));
+    var topLikes = articleRepository.findTop5ProjectedByPublishedTrueOrderByLikesDesc(PageRequest.of(0, 5));
+    model.addAttribute("topViewsTitles", topViews.stream().map(com.example.blog.repository.projection.ArticleStatsProjection::getTitle).toList());
+    model.addAttribute("topViewsValues", topViews.stream().map(p -> p.getViews() == null ? 0 : p.getViews()).toList());
+    model.addAttribute("topLikesTitles", topLikes.stream().map(com.example.blog.repository.projection.ArticleStatsProjection::getTitle).toList());
+    model.addAttribute("topLikesValues", topLikes.stream().map(p -> p.getLikes() == null ? 0 : p.getLikes()).toList());
     // Top commented articles
     var topCommentedRows = commentRepository.topCommentedArticles();
     var topCommentedTitles = topCommentedRows.stream().limit(5).map(r -> String.valueOf(r[0])).toList();
@@ -180,9 +148,9 @@ public class AdminController {
     model.addAttribute("tagTopNames", tagTopNames);
     model.addAttribute("tagTopCounts", tagTopCounts);
     // Recent 10 articles by views
-    var recentPage = articleRepository.findByPublishedTrueOrderByCreatedAtDesc(org.springframework.data.domain.PageRequest.of(0, 10));
-    var recentTitles = recentPage.getContent().stream().map(com.example.blog.entity.Article::getTitle).toList();
-    var recentViews = recentPage.getContent().stream().map(a -> a.getViews()).toList();
+    var recentArticles = articleRepository.findRecentPublishedProjected(org.springframework.data.domain.PageRequest.of(0, 10));
+    var recentTitles = recentArticles.stream().map(com.example.blog.repository.projection.ArticleStatsProjection::getTitle).toList();
+    var recentViews = recentArticles.stream().map(p -> p.getViews() == null ? 0 : p.getViews()).toList();
     model.addAttribute("recentTitles", recentTitles);
     model.addAttribute("recentViews", recentViews);
 
@@ -247,7 +215,7 @@ public class AdminController {
 
   @GetMapping("/articles")
   public String articles(Model model, @RequestParam(defaultValue = "0") int page) {
-    if (!userService.getCurrentUserOrThrow().canManageArticles()) {
+    if (!canAccess(() -> userService.assertCanManageArticles())) {
       return "redirect:/admin?error=no_permission";
     }
     model.addAttribute("page", articleRepository.findAll(PageRequest.of(page, 20)));
@@ -258,28 +226,25 @@ public class AdminController {
   @ResponseBody
   public Object deleteArticle(@PathVariable Long id,
                               @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-    if (!userService.getCurrentUserOrThrow().canManageArticles()) {
-      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
-            "ok", false,
-            "message", "no_permission"
-        ));
+    boolean ajaxRequest = isAjaxRequest(requestedWith);
+    try {
+      userService.assertCanManageArticles();
+      articleService.delete(id);
+      if (ajaxRequest) {
+        return ApiResponses.success("文章已删除", java.util.Map.of("id", id));
+      }
+      return "redirect:/admin/articles";
+    } catch (ForbiddenException ex) {
+      if (ajaxRequest) {
+        throw ex;
       }
       return "redirect:/admin?error=no_permission";
     }
-    articleService.delete(id);
-    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-      return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-          "ok", true,
-          "id", id
-      ));
-    }
-    return "redirect:/admin/articles";
   }
 
   @GetMapping("/comments")
   public String comments(Model model) {
-    if (!userService.getCurrentUserOrThrow().canModerateComments()) {
+    if (!canAccess(() -> userService.assertCanModerateComments())) {
       return "redirect:/admin?error=no_permission";
     }
     model.addAttribute("pending", commentService.listPending());
@@ -290,22 +255,20 @@ public class AdminController {
   @ResponseBody
   public Object approve(@PathVariable Long id,
                         @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-    if (!userService.getCurrentUserOrThrow().canModerateComments()) {
-      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
-            "ok", false,
-            "message", "no_permission"
-        ));
+    boolean ajaxRequest = isAjaxRequest(requestedWith);
+    try {
+      userService.assertCanModerateComments();
+      commentService.approve(id);
+      if (ajaxRequest) {
+        return ApiResponses.successMessage("评论已通过审核");
+      }
+      return "redirect:/admin/comments";
+    } catch (ForbiddenException ex) {
+      if (ajaxRequest) {
+        throw ex;
       }
       return "redirect:/admin?error=no_permission";
     }
-    commentService.approve(id);
-    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-      return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-          "ok", true
-      ));
-    }
-    return "redirect:/admin/comments";
   }
 
   @PostMapping("/comments/{id}/delete")
@@ -313,30 +276,28 @@ public class AdminController {
   public Object delete(@PathVariable Long id,
                        @RequestParam(required = false) String redirect,
                        @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-    if (!userService.getCurrentUserOrThrow().canModerateComments()) {
-      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
-            "ok", false,
-            "message", "no_permission"
-        ));
+    boolean ajaxRequest = isAjaxRequest(requestedWith);
+    try {
+      userService.assertCanModerateComments();
+      commentService.delete(id);
+      if (ajaxRequest) {
+        return ApiResponses.successMessage("评论已删除");
+      }
+      if (redirect != null && !redirect.isBlank()) {
+        return "redirect:" + redirect;
+      }
+      return "redirect:/admin/comments";
+    } catch (ForbiddenException ex) {
+      if (ajaxRequest) {
+        throw ex;
       }
       return "redirect:/admin?error=no_permission";
     }
-    commentService.delete(id);
-    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-      return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-          "ok", true
-      ));
-    }
-    if (redirect != null && !redirect.isBlank()) {
-      return "redirect:" + redirect;
-    }
-    return "redirect:/admin/comments";
   }
 
   @GetMapping("/notifications")
   public String notifications(Model model) {
-    if (!userService.getCurrentUserOrThrow().canManageAdminNotifications()) {
+    if (!canAccess(() -> userService.assertCanManageAdminNotifications())) {
       return "redirect:/admin?error=no_permission";
     }
     model.addAttribute("notices", notificationService.listForCurrentUser());
@@ -348,25 +309,37 @@ public class AdminController {
   public Object read(@PathVariable Long id,
                      @RequestParam(required = false) String redirect,
                      @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-    if (!userService.getCurrentUserOrThrow().canManageAdminNotifications()) {
-      if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-        return org.springframework.http.ResponseEntity.status(403).body(java.util.Map.of(
-            "ok", false,
-            "message", "no_permission"
+    boolean ajaxRequest = isAjaxRequest(requestedWith);
+    try {
+      userService.assertCanManageAdminNotifications();
+      notificationService.markAsRead(id);
+      if (ajaxRequest) {
+        return ApiResponses.success("通知已标记为已读", java.util.Map.of(
+            "unreadCount", notificationService.countUnreadForCurrentUser()
         ));
+      }
+      if (redirect != null && !redirect.isBlank()) {
+        return "redirect:" + redirect;
+      }
+      return "redirect:/admin/notifications";
+    } catch (ForbiddenException ex) {
+      if (ajaxRequest) {
+        throw ex;
       }
       return "redirect:/admin?error=no_permission";
     }
-    notificationService.markAsRead(id);
-    if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-      return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-          "ok", true,
-          "unreadCount", notificationService.countUnreadForCurrentUser()
-      ));
+  }
+
+  private boolean isAjaxRequest(String requestedWith) {
+    return "XMLHttpRequest".equalsIgnoreCase(requestedWith);
+  }
+
+  private boolean canAccess(Runnable permissionCheck) {
+    try {
+      permissionCheck.run();
+      return true;
+    } catch (ForbiddenException ex) {
+      return false;
     }
-    if (redirect != null && !redirect.isBlank()) {
-      return "redirect:" + redirect;
-    }
-    return "redirect:/admin/notifications";
   }
 }

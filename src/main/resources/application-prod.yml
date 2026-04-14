@@ -34,5 +34,8 @@ spring:
         debug: false
 
 logging:
+  file:
+    name: ${LOGGING_FILE_NAME:}
   level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
     org.thymeleaf: INFO

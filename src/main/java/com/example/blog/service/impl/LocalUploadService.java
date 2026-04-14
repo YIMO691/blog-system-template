@@ -77,4 +77,14 @@ public class LocalUploadService implements UploadService {
     if (lower.endsWith(".webp")) return MediaType.parseMediaType("image/webp");
     return MediaType.APPLICATION_OCTET_STREAM;
   }
+
+  @Override
+  public String resolveImageUrl(String filename) {
+    String baseUrl = properties.getPublicBaseUrl();
+    if (baseUrl == null || baseUrl.isBlank()) {
+      return "/articles/image/" + filename;
+    }
+    String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+    return normalizedBaseUrl + filename;
+  }
 }

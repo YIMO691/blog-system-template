@@ -8,4 +8,5 @@ public interface UploadService {
   String storeImage(MultipartFile file) throws java.io.IOException;
   Resource loadImage(String filename) throws java.io.IOException;
   MediaType getMediaType(String filename);
+  String resolveImageUrl(String filename);
 }

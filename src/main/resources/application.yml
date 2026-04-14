@@ -4,6 +4,8 @@ server:
 spring:
   profiles:
     active: dev
+  cache:
+    type: ${SPRING_CACHE_TYPE:simple}
   servlet:
     multipart:
       max-file-size: 5MB
@@ -19,6 +21,7 @@ spring:
 app:
   upload:
     dir: ${APP_UPLOAD_DIR:${user.dir}/uploads}
+    public-base-url: ${APP_UPLOAD_PUBLIC_BASE_URL:}
     max-size: 5242880
     allowed-extensions:
       - .jpg
@@ -33,6 +36,9 @@ app:
       - image/webp
 
 logging:
+  file:
+    name: ${LOGGING_FILE_NAME:}
   level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
     org.springframework.web: INFO
     org.springframework.security: INFO

@@ -1,6 +1,7 @@
 package com.example.blog.repository;
 
 import com.example.blog.entity.Article;
+import com.example.blog.repository.projection.ArticleStatsProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -44,8 +45,21 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
   @org.springframework.data.jpa.repository.Query("SELECT SUM(a.likes) FROM Article a")
   Long sumLikes();
 
-  java.util.List<Article> findTop5ByPublishedTrueOrderByViewsDesc();
-  java.util.List<Article> findTop5ByPublishedTrueOrderByLikesDesc();
+  @org.springframework.data.jpa.repository.Query("""
+      SELECT a.title AS title, a.views AS views, a.likes AS likes
+      FROM Article a
+      WHERE a.published = true
+      ORDER BY a.views DESC, a.createdAt DESC
+      """)
+  java.util.List<ArticleStatsProjection> findTop5ProjectedByPublishedTrueOrderByViewsDesc(Pageable pageable);
+
+  @org.springframework.data.jpa.repository.Query("""
+      SELECT a.title AS title, a.views AS views, a.likes AS likes
+      FROM Article a
+      WHERE a.published = true
+      ORDER BY a.likes DESC, a.createdAt DESC
+      """)
+  java.util.List<ArticleStatsProjection> findTop5ProjectedByPublishedTrueOrderByLikesDesc(Pageable pageable);
 
   @org.springframework.data.jpa.repository.Query("SELECT COALESCE(c.name, '未分类') AS name, COUNT(a) FROM Article a LEFT JOIN a.category c GROUP BY c.name ORDER BY COUNT(a) DESC")
   java.util.List<Object[]> countGroupedByCategory();
@@ -58,6 +72,14 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
       ORDER BY function('date', a.createdAt)
       """)
   java.util.List<Object[]> countCreatedGroupedByDate(java.time.Instant start, java.time.Instant end);
+
+  @org.springframework.data.jpa.repository.Query("""
+      SELECT a.title AS title, a.views AS views, a.likes AS likes
+      FROM Article a
+      WHERE a.published = true
+      ORDER BY a.createdAt DESC
+      """)
+  java.util.List<ArticleStatsProjection> findRecentPublishedProjected(Pageable pageable);
 
   java.util.List<Article> findByCreatedAtBetween(java.time.Instant start, java.time.Instant end);
 }

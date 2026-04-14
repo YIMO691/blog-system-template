@@ -1,5 +1,6 @@
 package com.example.blog.controller;
 
+import com.example.blog.common.api.ApiResponses;
 import com.example.blog.dto.ArticleForm;
 import com.example.blog.dto.CommentForm;
 import com.example.blog.entity.Article;
@@ -129,8 +130,12 @@ public class ArticleController {
     if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
       return Map.of(
           "ok", true,
-          "liked", result.liked(),
-          "likes", result.likes()
+          "code", "SUCCESS",
+          "message", "操作成功",
+          "data", Map.of(
+              "liked", result.liked(),
+              "likes", result.likes()
+          )
       );
     }
     Article a = articleService.getById(id);
@@ -150,7 +155,9 @@ public class ArticleController {
         String message = br.getFieldError() != null ? br.getFieldError().getDefaultMessage() : "评论内容校验失败";
         return ResponseEntity.badRequest().body(Map.of(
             "ok", false,
-            "message", message
+            "code", "VALIDATION_ERROR",
+            "message", message,
+            "data", Map.of()
         ));
       }
       model.addAttribute("article", a);
@@ -159,10 +166,9 @@ public class ArticleController {
     }
     Comment comment = commentService.addComment(a.getId(), form);
     if (ajaxRequest) {
-      return ResponseEntity.ok(Map.of(
-          "ok", true,
-          "approved", comment.isApproved(),
-          "message", comment.isApproved() ? "评论发布成功" : "评论已提交，待审核后显示"
+      return ResponseEntity.ok(ApiResponses.success(
+          comment.isApproved() ? "评论发布成功" : "评论已提交，待审核后显示",
+          Map.of("approved", comment.isApproved())
       ));
     }
     return "redirect:/articles/" + slug + "?commented";
@@ -185,8 +191,12 @@ public class ArticleController {
     if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
       return Map.of(
           "ok", true,
-          "liked", result.liked(),
-          "likes", result.likes()
+          "code", "SUCCESS",
+          "message", "操作成功",
+          "data", Map.of(
+              "liked", result.liked(),
+              "likes", result.likes()
+          )
       );
     }
     return "redirect:/articles/" + slug + "?liked=true#comment-" + id;
@@ -277,15 +287,17 @@ public class ArticleController {
 
   @PostMapping("/upload-image")
   public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) throws java.io.IOException {
-    com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
-    if (!currentUser.canWriteArticles()) {
-      return ResponseEntity.status(403).body(Map.of("error", "no_permission"));
-    }
+    userService.assertCanWriteArticles();
     try {
       String filename = uploadService.storeImage(file);
-      return ResponseEntity.ok(Map.of("url", "/articles/image/" + filename));
+      return ResponseEntity.ok(ApiResponses.success("图片上传成功", Map.of(
+          "url", uploadService.resolveImageUrl(filename)
+      )));
     } catch (IllegalArgumentException e) {
-      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+      return ResponseEntity.badRequest().body(ApiResponses.error(
+          com.example.blog.common.api.ErrorCode.BAD_REQUEST,
+          e.getMessage()
+      ));
     }
   }
 

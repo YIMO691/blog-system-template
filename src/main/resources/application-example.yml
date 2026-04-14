@@ -16,6 +16,8 @@ spring:
         format_sql: true
   thymeleaf:
     cache: false
+  cache:
+    type: simple
   mail:
     host: smtp.example.com
     port: 465
@@ -33,6 +35,7 @@ spring:
 app:
   upload:
     dir: ${user.dir}/uploads
+    public-base-url:
     max-size: 5242880
     allowed-extensions:
       - .jpg
@@ -45,3 +48,9 @@ app:
       - image/png
       - image/gif
       - image/webp
+
+logging:
+  file:
+    name:
+  level:
+    root: INFO

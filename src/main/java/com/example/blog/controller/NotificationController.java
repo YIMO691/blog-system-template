@@ -1,5 +1,6 @@
 package com.example.blog.controller;
 
+import com.example.blog.common.api.ApiResponses;
 import com.example.blog.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,10 +21,9 @@ public class NotificationController {
                         @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     notificationService.markAllAsReadForCurrentUser();
     if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-      return ResponseEntity.ok(java.util.Map.of(
-          "ok", true,
+      return ResponseEntity.ok(ApiResponses.success("已全部标记为已读", java.util.Map.of(
           "unreadCount", notificationService.countUnreadForCurrentUser()
-      ));
+      )));
     }
     String ref = request.getHeader("Referer");
     if (ref != null && !ref.isBlank()) {
@@ -37,10 +37,9 @@ public class NotificationController {
                            @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
     notificationService.deleteReadForCurrentUser();
     if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-      return ResponseEntity.ok(java.util.Map.of(
-          "ok", true,
+      return ResponseEntity.ok(ApiResponses.success("已删除全部已读通知", java.util.Map.of(
           "unreadCount", notificationService.countUnreadForCurrentUser()
-      ));
+      )));
     }
     String ref = request.getHeader("Referer");
     if (ref != null && !ref.isBlank()) {

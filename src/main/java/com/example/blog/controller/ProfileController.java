@@ -1,13 +1,14 @@
 package com.example.blog.controller;
 
-import com.example.blog.entity.User;
-import com.example.blog.entity.LoginRecord;
+import com.example.blog.common.api.ApiResponses;
 import com.example.blog.entity.ActionLog;
+import com.example.blog.exception.BadRequestException;
+import com.example.blog.entity.User;
 import com.example.blog.repository.UserRepository;
 import com.example.blog.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -19,9 +20,7 @@ public class ProfileController {
 
     private final UserService userService;
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final com.example.blog.service.NotificationService notificationService;
-    private final com.example.blog.service.EmailCodeService emailCodeService;
 
     private final com.example.blog.repository.ArticleLikeRepository articleLikeRepository;
     private final com.example.blog.repository.CommentLikeRepository commentLikeRepository;
@@ -44,21 +43,11 @@ public class ProfileController {
     @PostMapping("/update-nickname")
     public Object updateNickname(@RequestParam String nickname,
                                  @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-        User current = userService.getCurrentUserOrThrow();
-        current.setNickname(nickname);
-        userRepository.save(current);
-        actionLogRepository.save(ActionLog.builder()
-            .user(current)
-            .time(java.time.Instant.now())
-            .action("修改昵称")
-            .detail("昵称更新为：" + nickname)
-            .build());
+        UserService.NicknameUpdateResult result = userService.updateNickname(nickname);
         if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-            return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-                "ok", true,
-                "nickname", nickname,
-                "message", "昵称修改成功"
-            ));
+            return ResponseEntity.ok(ApiResponses.success(result.message(), java.util.Map.of(
+                "nickname", result.nickname()
+            )));
         }
         return "redirect:/profile?success=nickname";
     }
@@ -67,168 +56,75 @@ public class ProfileController {
     public Object updatePassword(@RequestParam String oldPassword,
                                  @RequestParam String newPassword,
                                  @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-        User current = userService.getCurrentUserOrThrow();
-        if (!passwordEncoder.matches(oldPassword, current.getPasswordHash())) {
+        try {
+            UserService.PasswordUpdateResult result = userService.updatePassword(oldPassword, newPassword);
             if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "原密码错误"
-                ));
+                return ResponseEntity.ok(ApiResponses.successMessage(result.message()));
             }
-            return "redirect:/profile?error=wrong_password";
-        }
-        if (passwordEncoder.matches(newPassword, current.getPasswordHash())) {
+            return "redirect:/profile?success=password";
+        } catch (BadRequestException ex) {
             if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "新密码不能与旧密码相同"
-                ));
+                throw ex;
             }
-            return "redirect:/profile?error=same_password";
+            if ("原密码错误".equals(ex.getMessage())) {
+                return "redirect:/profile?error=wrong_password";
+            }
+            if ("新密码不能与旧密码相同".equals(ex.getMessage())) {
+                return "redirect:/profile?error=same_password";
+            }
+            throw ex;
         }
-        current.setPasswordHash(passwordEncoder.encode(newPassword));
-        userRepository.save(current);
-        actionLogRepository.save(ActionLog.builder()
-            .user(current)
-            .time(java.time.Instant.now())
-            .action("修改密码")
-            .detail("用户修改了登录密码")
-            .build());
-        if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-            return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-                "ok", true,
-                "message", "密码修改成功"
-            ));
-        }
-        return "redirect:/profile?success=password";
     }
 
     @PostMapping("/update-email")
     public Object updateEmail(@RequestParam String newEmail,
                               @RequestParam String code,
                               @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-        User current = userService.getCurrentUserOrThrow();
-        if (newEmail == null || newEmail.isBlank()) {
+        try {
+            UserService.EmailUpdateResult result = userService.updateEmail(newEmail, code);
             if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "邮箱不能为空"
-                ));
+                return ResponseEntity.ok(ApiResponses.success(result.message(), java.util.Map.of(
+                    "email", result.email(),
+                    "emailVerified", result.emailVerified()
+                )));
             }
-            return "redirect:/profile?error=email_blank";
-        }
-        if (newEmail.equalsIgnoreCase(current.getEmail() != null ? current.getEmail() : "")) {
+            return "redirect:/profile?success=email";
+        } catch (BadRequestException ex) {
             if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "新邮箱不能与当前邮箱相同"
-                ));
+                throw ex;
             }
-            return "redirect:/profile?error=email_same";
+            return switch (ex.getMessage()) {
+                case "邮箱不能为空" -> "redirect:/profile?error=email_blank";
+                case "新邮箱不能与当前邮箱相同" -> "redirect:/profile?error=email_same";
+                case "该邮箱已被绑定" -> "redirect:/profile?error=email_exists";
+                case "邮箱验证码无效或已过期" -> "redirect:/profile?error=email_code_invalid";
+                default -> throw ex;
+            };
         }
-        if (userRepository.existsByEmail(newEmail)) {
-            if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "该邮箱已被绑定"
-                ));
-            }
-            return "redirect:/profile?error=email_exists";
-        }
-        if (code == null || code.isBlank() || !emailCodeService.verify(newEmail, code)) {
-            if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "邮箱验证码无效或已过期"
-                ));
-            }
-            return "redirect:/profile?error=email_code_invalid";
-        }
-        current.setEmail(newEmail);
-        current.setEmailVerified(true);
-        userRepository.save(current);
-        actionLogRepository.save(ActionLog.builder()
-            .user(current)
-            .time(java.time.Instant.now())
-            .action("更新邮箱")
-            .detail("新邮箱：" + newEmail)
-            .build());
-        if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-            return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-                "ok", true,
-                "email", newEmail,
-                "emailVerified", true,
-                "message", "邮箱更新成功"
-            ));
-        }
-        return "redirect:/profile?success=email";
     }
 
     @PostMapping("/update-phone")
     public Object updatePhone(@RequestParam(required = false) String phone,
                               @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-        User current = userService.getCurrentUserOrThrow();
-        if (phone == null || phone.isBlank()) {
-            current.setPhone(null);
-            userRepository.save(current);
-            actionLogRepository.save(ActionLog.builder()
-                .user(current)
-                .time(java.time.Instant.now())
-                .action("解绑手机号")
-                .detail("手机号已解除绑定")
-                .build());
+        try {
+            UserService.PhoneUpdateResult result = userService.updatePhone(phone);
             if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-                    "ok", true,
-                    "phone", "",
-                    "message", "手机号已解除绑定"
-                ));
+                return ResponseEntity.ok(ApiResponses.success(result.message(), java.util.Map.of(
+                    "phone", result.phone()
+                )));
             }
             return "redirect:/profile?success=phone";
-        }
-        if (!phone.matches("\\d{11}")) {
+        } catch (BadRequestException ex) {
             if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "手机号需为11位数字"
-                ));
+                throw ex;
             }
-            return "redirect:/profile?error=phone_format";
+            return switch (ex.getMessage()) {
+                case "手机号需为11位数字" -> "redirect:/profile?error=phone_format";
+                case "新手机号不能与当前相同" -> "redirect:/profile?error=phone_same";
+                case "该手机号已被绑定" -> "redirect:/profile?error=phone_exists";
+                default -> throw ex;
+            };
         }
-        if (phone.equals(current.getPhone() != null ? current.getPhone() : "")) {
-            if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "新手机号不能与当前相同"
-                ));
-            }
-            return "redirect:/profile?error=phone_same";
-        }
-        if (userRepository.existsByPhone(phone)) {
-            if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of(
-                    "ok", false,
-                    "message", "该手机号已被绑定"
-                ));
-            }
-            return "redirect:/profile?error=phone_exists";
-        }
-        current.setPhone(phone);
-        userRepository.save(current);
-        actionLogRepository.save(ActionLog.builder()
-            .user(current)
-            .time(java.time.Instant.now())
-            .action("更新手机号")
-            .detail("新手机号：" + phone)
-            .build());
-        if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-            return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-                "ok", true,
-                "phone", phone,
-                "message", "手机号更新成功"
-            ));
-        }
-        return "redirect:/profile?success=phone";
     }
 
     @PostMapping("/delete-account")
@@ -312,8 +208,7 @@ public class ProfileController {
                        @org.springframework.web.bind.annotation.RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
         notificationService.markAsRead(id);
         if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
-            return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
-                "ok", true,
+            return ApiResponses.success("通知已标记为已读", java.util.Map.of(
                 "unreadCount", notificationService.countUnreadForCurrentUser()
             ));
         }

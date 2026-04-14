@@ -111,4 +111,21 @@ class LocalUploadServiceTest {
     Resource resource = uploadService.loadImage("not-exists.png");
     assertNull(resource);
   }
+
+  @Test
+  void resolveImageUrl_shouldUseLocalRouteWhenBaseUrlMissing() {
+    assertEquals("/articles/image/demo.png", uploadService.resolveImageUrl("demo.png"));
+  }
+
+  @Test
+  void resolveImageUrl_shouldUseConfiguredPublicBaseUrl() {
+    UploadProperties props = new UploadProperties();
+    props.setDir(tempDir.toString());
+    props.setPublicBaseUrl("https://cdn.example.com/blog-images");
+    props.setAllowedExtensions(List.of(".jpg", ".jpeg", ".png", ".gif", ".webp"));
+    props.setAllowedContentTypes(List.of("image/jpeg", "image/png", "image/gif", "image/webp"));
+    LocalUploadService externalizedUploadService = new LocalUploadService(props);
+
+    assertEquals("https://cdn.example.com/blog-images/demo.png", externalizedUploadService.resolveImageUrl("demo.png"));
+  }
 }

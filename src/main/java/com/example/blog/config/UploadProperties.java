@@ -7,6 +7,7 @@ import java.util.List;
 @ConfigurationProperties(prefix = "app.upload")
 public class UploadProperties {
   private String dir = System.getProperty("user.dir") + "/uploads";
+  private String publicBaseUrl = "";
   private long maxSize = 5 * 1024 * 1024;
   private List<String> allowedExtensions = List.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
   private List<String> allowedContentTypes = List.of("image/jpeg", "image/png", "image/gif", "image/webp");
@@ -17,6 +18,14 @@ public class UploadProperties {
 
   public void setDir(String dir) {
     this.dir = dir;
+  }
+
+  public String getPublicBaseUrl() {
+    return publicBaseUrl;
+  }
+
+  public void setPublicBaseUrl(String publicBaseUrl) {
+    this.publicBaseUrl = publicBaseUrl;
   }
 
   public long getMaxSize() {

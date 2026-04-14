@@ -1,5 +1,6 @@
 package com.example.blog.controller;
 
+import com.example.blog.common.api.ApiResponses;
 import com.example.blog.dto.RegisterRequest;
 import com.example.blog.service.UserService;
 import jakarta.validation.Valid;
@@ -42,13 +43,9 @@ public class AuthController {
 
   @PostMapping("/email-code")
   @ResponseBody
-  public java.util.Map<String,Object> sendEmailCode(@RequestParam String email) {
-    try {
-      emailCodeService.sendCode(email);
-      return java.util.Map.of("ok", true);
-    } catch (Exception e) {
-      return java.util.Map.of("ok", false, "error", e.getMessage());
-    }
+  public Object sendEmailCode(@RequestParam String email) {
+    emailCodeService.sendCode(email);
+    return ApiResponses.successMessage("验证码发送成功");
   }
 
   @GetMapping("/forgot")
