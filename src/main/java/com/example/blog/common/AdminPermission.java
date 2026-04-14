@@ -27,8 +27,6 @@ public enum AdminPermission {
 
   public static Set<AdminPermission> defaultAdminPermissions() {
     return EnumSet.of(
-        ARTICLE_WRITE,
-        ARTICLE_MANAGE,
         COMMENT_MODERATE,
         NOTIFICATION_MANAGE,
         STATS_VIEW
