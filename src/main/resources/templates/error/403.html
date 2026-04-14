@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('403 无权限')}"></head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container" style="max-width: 760px;">
+  <div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+      <div class="display-4 fw-bold text-warning mb-3">403</div>
+      <h2 class="mb-3">无权限访问</h2>
+      <p class="text-muted mb-4" th:text="${message ?: '你没有权限访问该页面或执行该操作。'}">你没有权限访问该页面或执行该操作。</p>
+      <div class="d-flex justify-content-center gap-2">
+        <a class="btn btn-primary" th:href="@{/}">返回首页</a>
+        <a class="btn btn-outline-secondary" th:href="@{/profile}" th:if="${#authorization.expression('isAuthenticated()')}">个人中心</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

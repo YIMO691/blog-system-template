@@ -1,6 +1,7 @@
 package com.example.blog.config;
 
 import com.example.blog.exception.BadRequestException;
+import com.example.blog.exception.ForbiddenException;
 import com.example.blog.exception.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.ui.Model;
@@ -21,6 +22,13 @@ public class GlobalExceptionHandler {
   public String handleBadRequest(BadRequestException ex, Model model) {
     model.addAttribute("message", ex.getMessage());
     return "error/400";
+  }
+
+  @ExceptionHandler(ForbiddenException.class)
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public String handleForbidden(ForbiddenException ex, Model model) {
+    model.addAttribute("message", ex.getMessage());
+    return "error/403";
   }
 
   @ExceptionHandler(Exception.class)
