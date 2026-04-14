@@ -35,7 +35,7 @@
          th:href="@{/articles/editor/{id}(id=${article.id})}">编辑</a>
       
       <!-- Delete: Author or Admin -->
-      <form th:if="${(article.author != null and article.author.username == #authentication.name) or #authorization.expression('hasRole(''ADMIN'')')}"
+      <form th:if="${(article.author != null and article.author.username == #authentication.name) or (currentUser != null and currentUser.canManageArticles())}"
             th:action="@{/articles/{id}/delete(id=${article.id})}" method="post" class="d-inline ms-1"
             onsubmit="return confirm('确定要删除这篇文章吗？')">
         <button type="submit" class="btn btn-outline-danger btn-sm">删除</button>

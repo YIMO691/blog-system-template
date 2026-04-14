@@ -128,12 +128,12 @@ public class CommentServiceImpl implements CommentService {
         .user(current)
         .displayName(finalDisplayName)
         .content(form.content())
-        .approved(current.getRole() == com.example.blog.common.Role.ROLE_ADMIN)
+        .approved(current.canModerateComments())
         .parent(parent)
         .build();
 
     Comment saved = commentRepository.save(c);
-    if (current.getRole() != com.example.blog.common.Role.ROLE_ADMIN) {
+    if (!current.canModerateComments()) {
       notificationService.notifyAdmin(
           com.example.blog.common.NotificationType.COMMENT_PENDING,
           "有新的评论待审核",

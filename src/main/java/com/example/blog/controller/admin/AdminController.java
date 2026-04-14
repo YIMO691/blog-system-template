@@ -1,5 +1,6 @@
 package com.example.blog.controller.admin;
 
+import com.example.blog.common.AdminPermission;
 import com.example.blog.repository.ArticleRepository;
 import com.example.blog.service.CommentService;
 import lombok.RequiredArgsConstructor;
@@ -24,12 +25,15 @@ public class AdminController {
 
   @GetMapping
   public String dashboard() {
+    if (!userService.getCurrentUserOrThrow().canAccessAdmin()) {
+      return "redirect:/?error=no_permission";
+    }
     return "admin/dashboard";
   }
 
   @GetMapping("/users")
   public String users(Model model) {
-    if (!"admin".equals(userService.getCurrentUserOrThrow().getUsername())) {
+    if (!userService.getCurrentUserOrThrow().canManageUsers()) {
       return "redirect:/admin?error=no_permission";
     }
     model.addAttribute("users", userRepository.findAll());
@@ -38,18 +42,21 @@ public class AdminController {
 
   @PostMapping("/users/{id}/toggle-admin")
   public String toggleAdmin(@PathVariable Long id) {
-    if (!"admin".equals(userService.getCurrentUserOrThrow().getUsername())) {
+    if (!userService.getCurrentUserOrThrow().canManageUsers()) {
       return "redirect:/admin?error=no_permission";
     }
     com.example.blog.entity.User u = userRepository.findById(id).orElseThrow();
-    if ("admin".equals(u.getUsername())) {
+    if (u.isSuperAdmin()) {
       return "redirect:/admin/users?error=cannot_modify_super_admin";
     }
 
     if (u.getRole() == com.example.blog.common.Role.ROLE_ADMIN) {
       u.setRole(com.example.blog.common.Role.ROLE_USER);
+      u.setSuperAdmin(false);
+      u.getAdminPermissions().clear();
     } else {
       u.setRole(com.example.blog.common.Role.ROLE_ADMIN);
+      u.grantAdminPermissions(AdminPermission.defaultAdminPermissions());
     }
     userRepository.save(u);
     notificationService.notifyUser(
@@ -63,11 +70,11 @@ public class AdminController {
 
   @PostMapping("/users/{id}/toggle-mute")
   public String toggleMute(@PathVariable Long id) {
-    if (!"admin".equals(userService.getCurrentUserOrThrow().getUsername())) {
+    if (!userService.getCurrentUserOrThrow().canManageUsers()) {
       return "redirect:/admin?error=no_permission";
     }
     com.example.blog.entity.User u = userRepository.findById(id).orElseThrow();
-    if ("admin".equals(u.getUsername())) {
+    if (u.isSuperAdmin()) {
       return "redirect:/admin/users?error=cannot_mute_super_admin";
     }
 
@@ -84,6 +91,9 @@ public class AdminController {
 
   @GetMapping("/stats")
   public String stats(Model model, @RequestParam(defaultValue = "7") int range) {
+    if (!userService.getCurrentUserOrThrow().canViewStats()) {
+      return "redirect:/admin?error=no_permission";
+    }
     // Article Stats
     model.addAttribute("articleCount", articleRepository.count());
     model.addAttribute("articlePublishedCount", articleRepository.countByPublishedTrue());
@@ -169,30 +179,45 @@ public class AdminController {
 
   @GetMapping("/articles")
   public String articles(Model model, @RequestParam(defaultValue = "0") int page) {
+    if (!userService.getCurrentUserOrThrow().canManageArticles()) {
+      return "redirect:/admin?error=no_permission";
+    }
     model.addAttribute("page", articleRepository.findAll(PageRequest.of(page, 20)));
     return "admin/articles";
   }
 
   @PostMapping("/articles/{id}/delete")
   public String deleteArticle(@PathVariable Long id) {
+    if (!userService.getCurrentUserOrThrow().canManageArticles()) {
+      return "redirect:/admin?error=no_permission";
+    }
     articleService.delete(id);
     return "redirect:/admin/articles";
   }
 
   @GetMapping("/comments")
   public String comments(Model model) {
+    if (!userService.getCurrentUserOrThrow().canModerateComments()) {
+      return "redirect:/admin?error=no_permission";
+    }
     model.addAttribute("pending", commentService.listPending());
     return "admin/comments";
   }
 
   @PostMapping("/comments/{id}/approve")
   public String approve(@PathVariable Long id) {
+    if (!userService.getCurrentUserOrThrow().canModerateComments()) {
+      return "redirect:/admin?error=no_permission";
+    }
     commentService.approve(id);
     return "redirect:/admin/comments";
   }
 
   @PostMapping("/comments/{id}/delete")
   public String delete(@PathVariable Long id, @RequestParam(required = false) String redirect) {
+    if (!userService.getCurrentUserOrThrow().canModerateComments()) {
+      return "redirect:/admin?error=no_permission";
+    }
     commentService.delete(id);
     if (redirect != null && !redirect.isBlank()) {
       return "redirect:" + redirect;
@@ -202,12 +227,18 @@ public class AdminController {
 
   @GetMapping("/notifications")
   public String notifications(Model model) {
+    if (!userService.getCurrentUserOrThrow().canManageAdminNotifications()) {
+      return "redirect:/admin?error=no_permission";
+    }
     model.addAttribute("notices", notificationService.listForCurrentUser());
     return "admin/notifications";
   }
 
   @PostMapping("/notifications/{id}/read")
   public String read(@PathVariable Long id, @RequestParam(required = false) String redirect) {
+    if (!userService.getCurrentUserOrThrow().canManageAdminNotifications()) {
+      return "redirect:/admin?error=no_permission";
+    }
     notificationService.markAsRead(id);
     if (redirect != null && !redirect.isBlank()) {
       return "redirect:" + redirect;

@@ -1,6 +1,7 @@
 package com.example.blog.service.impl;
 
 import com.example.blog.common.NotificationType;
+import com.example.blog.common.Role;
 import com.example.blog.entity.Notification;
 import com.example.blog.entity.User;
 import com.example.blog.repository.NotificationRepository;
@@ -36,16 +37,28 @@ public class NotificationServiceImpl implements NotificationService {
 
   @Override
   public Notification notifyAdmin(NotificationType type, String message, String link) {
-    User admin = userRepository.findByUsername("admin").orElse(null);
-    if (admin == null) return null;
-    Notification n = Notification.builder()
-        .type(type)
-        .recipient(admin)
-        .message(message)
-        .link(link)
-        .read(false)
-        .build();
-    return notificationRepository.save(n);
+    java.util.List<User> recipients = userRepository.findByRole(Role.ROLE_ADMIN).stream()
+        .filter(admin -> switch (type) {
+          case COMMENT_PENDING -> admin.canModerateComments();
+          default -> admin.canManageAdminNotifications();
+        })
+        .toList();
+
+    Notification first = null;
+    for (User admin : recipients) {
+      Notification n = Notification.builder()
+          .type(type)
+          .recipient(admin)
+          .message(message)
+          .link(link)
+          .read(false)
+          .build();
+      Notification saved = notificationRepository.save(n);
+      if (first == null) {
+        first = saved;
+      }
+    }
+    return first;
   }
 
   @Override

@@ -16,6 +16,15 @@ public class GlobalModelAttributes {
   private final NotificationRepository notificationRepository;
   private final UserService userService;
 
+  @ModelAttribute("currentUser")
+  public com.example.blog.entity.User currentUser() {
+    try {
+      return userService.getCurrentUserOrThrow();
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
   @ModelAttribute("notificationsUnread")
   public Long notificationsUnread() {
     try {

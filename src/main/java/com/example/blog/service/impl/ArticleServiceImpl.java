@@ -198,7 +198,7 @@ public class ArticleServiceImpl implements ArticleService {
     if (currentUser.isMuted()) {
       throw new ForbiddenException("您已被禁言，无法发布或编辑文章");
     }
-    if (!"admin".equals(currentUser.getUsername())) {
+    if (!currentUser.canWriteArticles()) {
       throw new ForbiddenException("仅管理员可进行文章书写");
     }
 
@@ -253,7 +253,7 @@ public class ArticleServiceImpl implements ArticleService {
     
     // 权限检查：只有作者或管理员可以删除
     boolean isAuthor = a.getAuthor().getId().equals(currentUser.getId());
-    boolean isAdmin = currentUser.getRole() == com.example.blog.common.Role.ROLE_ADMIN;
+    boolean isAdmin = currentUser.canManageArticles();
     
     if (!isAuthor && !isAdmin) {
       throw new ForbiddenException("无权删除此文章");
