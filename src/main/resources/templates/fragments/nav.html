@@ -66,7 +66,7 @@
         </li>
         <li class="nav-item dropdown" th:if="${#authorization.expression('isAuthenticated()')}">
             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-circle me-1"></i><span th:text="${#authentication.name}">User</span>
+                <i class="bi bi-person-circle me-1"></i><span id="navCurrentUserName" th:text="${currentUser != null and currentUser.nickname != null and !currentUser.nickname.isBlank() ? currentUser.nickname : #authentication.name}">User</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                 <li th:if="${currentUser != null and currentUser.canAccessAdmin()}"><a class="dropdown-item" th:href="@{/admin}"><i class="bi bi-speedometer2 me-2"></i>后台管理</a></li>
@@ -133,7 +133,7 @@
           const response = await fetch(form.action, { method: 'POST', headers: buildHeaders() });
           const data = await response.json();
           if (!response.ok || !data.ok) throw new Error('read_all_failed');
-          updateNavNotifications(data.unreadCount ?? 0);
+          updateNavNotifications(data.data?.unreadCount ?? 0);
         } finally {
           if (button) button.disabled = false;
         }

@@ -151,10 +151,10 @@
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.message || 'action_failed');
         await refreshPageContent();
-        updateNavUnreadCount(data.unreadCount ?? 0);
-        showFeedback(successMessage, 'success');
+        updateNavUnreadCount(data.data?.unreadCount ?? 0);
+        showFeedback(data.message || successMessage, 'success');
       } catch (e) {
-        showFeedback('操作失败，请稍后重试', 'danger');
+        showFeedback(e.message && !e.message.includes('Unexpected') ? e.message : '操作失败，请稍后重试', 'danger');
       } finally {
         if (button) button.disabled = false;
       }

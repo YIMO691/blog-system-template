@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<script th:fragment="script">
+  (function () {
+    if (window.EmailCodeSender) return;
+
+    function isEmail(value) {
+      return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+    }
+
+    function getCsrfToken() {
+      return document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || null;
+    }
+
+    function getCsrfHeaderName() {
+      return document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+    }
+
+    function buildHeaders() {
+      const headers = {};
+      const token = getCsrfToken();
+      const headerName = getCsrfHeaderName();
+      if (token && headerName) headers[headerName] = token;
+      return headers;
+    }
+
+    function isCoolingDown(button) {
+      return button?.dataset.cooldownActive === 'true';
+    }
+
+    function startCooldown(button, seconds, initialText, onReset) {
+      button.dataset.cooldownActive = 'true';
+      button.disabled = true;
+      let remain = seconds;
+      button.textContent = `重新发送(${remain})`;
+      const timer = window.setInterval(function () {
+        remain -= 1;
+        if (remain <= 0) {
+          window.clearInterval(timer);
+          button.dataset.cooldownActive = 'false';
+          button.textContent = initialText;
+          if (typeof onReset === 'function') {
+            onReset();
+          } else {
+            button.disabled = false;
+          }
+          return;
+        }
+        button.textContent = `重新发送(${remain})`;
+      }, 1000);
+    }
+
+    async function send(button, email, options) {
+      const settings = options || {};
+      const initialText = settings.initialText || button?.dataset.initialText || '发送验证码';
+      const countdownSeconds = Number(settings.countdownSeconds || button?.dataset.countdownSeconds || 60);
+      if (!button || !isEmail(email)) {
+        return false;
+      }
+
+      const formData = new FormData();
+      formData.append('email', email);
+      button.disabled = true;
+
+      try {
+        const response = await fetch('/auth/email-code', {
+          method: 'POST',
+          headers: buildHeaders(),
+          body: formData
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.message || '发送失败');
+        }
+        if (typeof settings.onSuccess === 'function') {
+          settings.onSuccess(data);
+        }
+        startCooldown(button, countdownSeconds, initialText, settings.onReset);
+        return true;
+      } catch (error) {
+        button.dataset.cooldownActive = 'false';
+        if (typeof settings.onError === 'function') {
+          settings.onError(error.message && !error.message.includes('Unexpected') ? error.message : '发送失败');
+        } else {
+          button.disabled = false;
+        }
+        return false;
+      }
+    }
+
+    window.EmailCodeSender = {
+      isEmail,
+      isCoolingDown,
+      send
+    };
+  })();
+</script>
+</body>
+</html>

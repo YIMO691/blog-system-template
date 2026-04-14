@@ -26,7 +26,6 @@
       <div class="input-group">
         <span class="input-group-text bg-light"><i class="bi bi-shield-lock"></i></span>
         <input class="form-control" name="newPassword" id="newPassword" type="password" placeholder="请输入新密码" required>
-        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('newPassword', this)"><i class="bi bi-eye"></i></button>
       </div>
       <div class="form-text">新密码不能与旧密码相同</div>
     </div>
@@ -35,7 +34,6 @@
       <div class="input-group">
         <span class="input-group-text bg-light"><i class="bi bi-shield-check"></i></span>
         <input class="form-control" id="confirmPassword" type="password" placeholder="请再次输入新密码" required>
-        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPassword', this)"><i class="bi bi-eye"></i></button>
       </div>
     </div>
     <button class="btn btn-success w-100" type="submit">提交</button>
@@ -45,59 +43,28 @@
   </div>
 </div>
 
+<script th:replace="~{fragments/email-code-sender :: script}"></script>
 <script>
-function isEmail(v){return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);}
-function togglePassword(id, btn){
-  const input = document.getElementById(id);
-  if (!input) return;
-  if (input.type === 'password'){
-    input.type = 'text';
-    btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
-  } else {
-    input.type = 'password';
-    btn.innerHTML = '<i class="bi bi-eye"></i>';
-  }
-}
 const emailInput = document.getElementById('emailInput');
 const sendBtn = document.getElementById('sendCodeBtn');
 const resetForm = document.getElementById('resetForm');
 function updateUI(){
   const v = emailInput.value.trim();
-  sendBtn.disabled = !isEmail(v);
+  sendBtn.disabled = !EmailCodeSender.isEmail(v) || EmailCodeSender.isCoolingDown(sendBtn);
 }
 emailInput.addEventListener('input', updateUI);
 updateUI();
 sendBtn.addEventListener('click', async function(){
   const v = emailInput.value.trim();
-  if(!isEmail(v)) return;
-  const fd = new FormData();
-  fd.append('email', v);
-  const token = document.querySelector('meta[name=\"_csrf\"]')?.getAttribute('content');
-  const headerName = document.querySelector('meta[name=\"_csrf_header\"]')?.getAttribute('content');
-  const headers = {};
-  if (token && headerName) headers[headerName] = token;
-  sendBtn.disabled = true;
-  const resp = await fetch('/auth/email-code', { method: 'POST', headers, body: fd });
-  try {
-    const data = await resp.json();
-    if (!data.ok) {
-      alert('发送失败：' + (data.error || ''));
-      sendBtn.disabled = false;
-      return;
-    }
-  } catch(e){ sendBtn.disabled = false; return; }
-  let sec = 60;
-  sendBtn.textContent = `重新发送(${sec})`;
-  const timer = setInterval(()=>{
-    sec--;
-    if (sec<=0){
-      clearInterval(timer);
-      sendBtn.textContent = '获取邮箱验证码';
+  if(!EmailCodeSender.isEmail(v)) return;
+  await EmailCodeSender.send(sendBtn, v, {
+    initialText: '获取邮箱验证码',
+    onReset: updateUI,
+    onError: function(message) {
+      alert('发送失败：' + message);
       updateUI();
-      return;
     }
-    sendBtn.textContent = `重新发送(${sec})`;
-  }, 1000);
+  });
 });
 resetForm.addEventListener('submit', function(e){
   const np = document.getElementById('newPassword')?.value || '';

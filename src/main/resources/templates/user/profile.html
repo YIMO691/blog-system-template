@@ -104,7 +104,6 @@
                   <div class="input-group">
                     <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
                     <input type="password" name="oldPassword" id="oldPassword" class="form-control" required>
-                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('oldPassword', this)"><i class="bi bi-eye"></i></button>
                   </div>
                 </div>
                 <div class="mb-3">
@@ -112,7 +111,6 @@
                   <div class="input-group">
                     <span class="input-group-text bg-light"><i class="bi bi-shield-lock"></i></span>
                     <input type="password" name="newPassword" id="newPassword" class="form-control" required>
-                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('newPassword', this)"><i class="bi bi-eye"></i></button>
                   </div>
                 </div>
                 <div class="mb-3">
@@ -120,7 +118,6 @@
                   <div class="input-group">
                     <span class="input-group-text bg-light"><i class="bi bi-shield-check"></i></span>
                     <input type="password" id="confirmPassword" class="form-control" required>
-                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPassword', this)"><i class="bi bi-eye"></i></button>
                   </div>
                 </div>
                 <button class="btn btn-warning w-100 text-white fw-bold" type="submit"><i class="bi bi-key me-2"></i>修改密码</button>
@@ -245,8 +242,8 @@
     </div>
   </div>
 </div>
+<script th:replace="~{fragments/email-code-sender :: script}"></script>
 <script th:inline="javascript">
-function isEmail(v){return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);}
 const emailInput = document.getElementById('newEmailInput');
 const sendBtn = document.getElementById('sendEmailCodeBtn');
 const phoneForm = document.getElementById('phoneForm');
@@ -255,6 +252,7 @@ let currentEmail = /*[[${user.email}]]*/ null;
 let currentPhone = /*[[${user.phone}]]*/ null;
 const nicknameForm = document.getElementById('nicknameForm');
 const nicknameInput = document.getElementById('nicknameInput');
+const navCurrentUserName = document.getElementById('navCurrentUserName');
 const currentEmailText = document.getElementById('currentEmailText');
 const currentEmailVerifiedBadge = document.getElementById('currentEmailVerifiedBadge');
 const currentPhoneText = document.getElementById('currentPhoneText');
@@ -285,7 +283,7 @@ async function submitProfileForm(form, successHandler){
     });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.message || 'submit_failed');
-    if (typeof successHandler === 'function') successHandler(data);
+    if (typeof successHandler === 'function') successHandler(data.data || {});
     showProfileFeedback(data.message || '保存成功', 'success');
   } catch (e) {
     showProfileFeedback(e.message && !e.message.includes('Unexpected') ? e.message : '保存失败，请稍后重试', 'danger');
@@ -293,70 +291,39 @@ async function submitProfileForm(form, successHandler){
     if (button) button.disabled = false;
   }
 }
-function togglePassword(id, btn){
-  const input = document.getElementById(id);
-  if (!input) return;
-  if (input.type === 'password'){
-    input.type = 'text';
-    btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
-  } else {
-    input.type = 'password';
-    btn.innerHTML = '<i class="bi bi-eye"></i>';
-  }
-}
 function updateSendBtn(){
   const v = emailInput.value.trim();
-  sendBtn.disabled = !isEmail(v);
+  sendBtn.disabled = !EmailCodeSender.isEmail(v) || EmailCodeSender.isCoolingDown(sendBtn);
 }
 if (emailInput && sendBtn){
   emailInput.addEventListener('input', updateSendBtn);
   updateSendBtn();
   sendBtn.addEventListener('click', async function(){
     const v = emailInput.value.trim();
-    if(!isEmail(v)) return;
+    if(!EmailCodeSender.isEmail(v)) return;
     if (currentEmail && v.toLowerCase() === String(currentEmail).toLowerCase()){
       alert('新邮箱不能与当前邮箱相同');
       return;
     }
-    const fd = new FormData();
-    fd.append('email', v);
-    sendBtn.disabled = true;
-    const resp = await fetch('/auth/email-code', { method: 'POST', headers: buildHeaders(), body: fd });
-    try {
-      const data = await resp.json();
-      if (!data.ok) {
-        alert('发送失败：' + (data.error || ''));
-        sendBtn.disabled = false;
-        return;
-      }
-    } catch(e){ sendBtn.disabled = false; return; }
-    let sec = 60;
-    const text0 = '发送验证码';
-    sendBtn.textContent = `重新发送(${sec})`;
-    const timer = setInterval(()=>{
-      sec--;
-      if (sec<=0){
-        clearInterval(timer);
-        sendBtn.textContent = text0;
+    await EmailCodeSender.send(sendBtn, v, {
+      initialText: '发送验证码',
+      onReset: updateSendBtn,
+      onError: function(message) {
+        alert('发送失败：' + message);
         updateSendBtn();
-        return;
       }
-      sendBtn.textContent = `重新发送(${sec})`;
-    }, 1000);
+    });
   });
 }
 if (phoneForm){
   phoneForm.addEventListener('submit', function(e){
+    e.preventDefault();
     const input = phoneForm.querySelector('input[name="phone"]');
     const pv = (input?.value || '').trim();
     if (pv && currentPhone && pv === String(currentPhone)){
-      e.preventDefault();
-      alert('新手机号不能与当前相同');
+      showProfileFeedback('新手机号不能与当前相同', 'danger');
       return false;
     }
-  });
-  phoneForm.addEventListener('submit', function(e){
-    e.preventDefault();
     submitProfileForm(phoneForm, function(data){
       currentPhone = data.phone || null;
       currentPhoneText.textContent = data.phone ? data.phone : '未绑定';
@@ -367,15 +334,6 @@ if (phoneForm){
 }
 const passwordForm = document.getElementById('passwordForm');
 if (passwordForm){
-  passwordForm.addEventListener('submit', function(e){
-    const np = document.getElementById('newPassword')?.value || '';
-    const cp = document.getElementById('confirmPassword')?.value || '';
-    if (np !== cp){
-      e.preventDefault();
-      alert('两次输入的新密码不一致');
-      return false;
-    }
-  });
   passwordForm.addEventListener('submit', function(e){
     e.preventDefault();
     const np = document.getElementById('newPassword')?.value || '';
@@ -392,7 +350,15 @@ if (passwordForm){
 if (nicknameForm){
   nicknameForm.addEventListener('submit', function(e){
     e.preventDefault();
-    submitProfileForm(nicknameForm);
+    submitProfileForm(nicknameForm, function(data){
+      const nickname = data.nickname || nicknameInput?.value || '';
+      if (nicknameInput) {
+        nicknameInput.value = nickname;
+      }
+      if (navCurrentUserName && nickname) {
+        navCurrentUserName.textContent = nickname;
+      }
+    });
   });
 }
 if (emailForm){
@@ -402,6 +368,7 @@ if (emailForm){
       currentEmail = data.email || null;
       currentEmailText.textContent = data.email || '未绑定';
       currentEmailVerifiedBadge.classList.toggle('d-none', !data.emailVerified);
+      updateSendBtn();
     });
   });
 }

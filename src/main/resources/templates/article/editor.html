@@ -433,14 +433,15 @@
         }
         const resp = await fetch('/articles/upload-image', { method: 'POST', headers, body: fd });
         const data = await resp.json();
-        if (data && data.url) {
+        const payload = data?.data || {};
+        if (resp.ok && data?.ok && payload.url) {
           const insert = isMarkdownMode()
-            ? `\n![图片描述](${data.url})\n`
-            : `\n<img src="${data.url}" alt="" style="max-width:100%;">\n`;
+            ? `\n![图片描述](${payload.url})\n`
+            : `\n<img src="${payload.url}" alt="" style="max-width:100%;">\n`;
           insertTemplate(insert);
           imageFile.value = '';
         } else {
-          alert(data?.error || '上传失败');
+          alert(data?.message || '上传失败');
         }
       });
     }

@@ -130,11 +130,11 @@
             throw new Error(data.message || 'action_failed');
           }
           if (row) {
-            updateUserRow(row, data);
+            updateUserRow(row, data.data || {});
           }
-          showFeedback('用户状态已更新', 'success');
+          showFeedback(data.message || '用户状态已更新', 'success');
         } catch (error) {
-          showFeedback('操作失败，请稍后重试', 'danger');
+          showFeedback(error.message && !error.message.includes('Unexpected') ? error.message : '操作失败，请稍后重试', 'danger');
         } finally {
           if (button) button.disabled = false;
         }

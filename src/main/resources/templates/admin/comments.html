@@ -82,9 +82,9 @@
             if (card) {
               card.remove();
             }
-            showFeedback(successMessage, 'success');
+            showFeedback(data.message || successMessage, 'success');
           } catch (error) {
-            showFeedback('操作失败，请稍后重试', 'danger');
+            showFeedback(error.message && !error.message.includes('Unexpected') ? error.message : '操作失败，请稍后重试', 'danger');
           } finally {
             if (button) button.disabled = false;
           }

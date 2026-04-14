@@ -27,7 +27,6 @@
           <div class="input-group">
             <span class="input-group-text bg-light"><i class="bi bi-shield-lock"></i></span>
             <input class="form-control" name="password" type="password" id="loginPassword" placeholder="输入密码" required>
-            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('loginPassword', this)"><i class="bi bi-eye"></i></button>
           </div>
         </div>
         <button class="btn btn-primary w-100" type="submit"><i class="bi bi-box-arrow-in-right me-1"></i>登录</button>
@@ -41,17 +40,5 @@
   </div>
 </div>
 <div th:replace="~{fragments/footer :: footer}"></div>
-<script>
-function togglePassword(inputId, btn) {
-  const input = document.getElementById(inputId);
-  if (input.type === "password") {
-    input.type = "text";
-    btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
-  } else {
-    input.type = "password";
-    btn.innerHTML = '<i class="bi bi-eye"></i>';
-  }
-}
-</script>
 </body>
 </html>
