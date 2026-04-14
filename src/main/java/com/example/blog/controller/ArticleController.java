@@ -6,6 +6,7 @@ import com.example.blog.entity.Article;
 import com.example.blog.entity.Comment;
 import com.example.blog.service.ArticleService;
 import com.example.blog.service.CommentService;
+import com.example.blog.service.MarkdownService;
 import com.example.blog.service.TaxonomyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.Map;
 import com.example.blog.service.UploadService;
@@ -31,6 +34,7 @@ public class ArticleController {
   private final TaxonomyService taxonomyService;
   private final com.example.blog.service.UserService userService;
   private final UploadService uploadService;
+  private final MarkdownService markdownService;
 
   @GetMapping
   public String list(@RequestParam(defaultValue = "0") int page, 
@@ -110,6 +114,7 @@ public class ArticleController {
     }
     
     model.addAttribute("article", a);
+    model.addAttribute("renderedContent", markdownService.render(a.getContent()));
     model.addAttribute("comments", commentService.listApprovedByArticle(a.getId()));
     model.addAttribute("commentForm", new CommentForm("", null));
     model.addAttribute("likedByCurrentUser", articleService.isLikedByCurrentUser(a.getId()));
@@ -199,6 +204,7 @@ public class ArticleController {
       model.addAttribute("drafts", drafts);
     }
     model.addAttribute("form", new ArticleForm("", "", false, null, null, Set.of()));
+    model.addAttribute("tagsValue", "");
     model.addAttribute("categories", taxonomyService.listCategories());
     model.addAttribute("articleId", null);
     return "article/editor";
@@ -225,6 +231,7 @@ public class ArticleController {
         null,
         tagNames
     ));
+    model.addAttribute("tagsValue", String.join(", ", tagNames));
     model.addAttribute("categories", taxonomyService.listCategories());
     model.addAttribute("articleId", id);
     return "article/editor";
@@ -234,16 +241,27 @@ public class ArticleController {
   public String create(@ModelAttribute("form") @Valid ArticleForm form, 
                        BindingResult br, 
                        @RequestParam(required = false) Long id,
+                       @RequestParam(required = false) String tags,
                        Model model) {
     com.example.blog.entity.User currentUser = userService.getCurrentUserOrThrow();
     if (!currentUser.canWriteArticles()) {
       return "redirect:/?error=no_permission";
     }
+    ArticleForm normalizedForm = new ArticleForm(
+        form.title(),
+        form.content(),
+        form.published(),
+        form.categoryId(),
+        form.newCategory(),
+        parseTags(tags)
+    );
     if (br.hasErrors()) {
+      model.addAttribute("tagsValue", tags == null ? "" : tags);
       model.addAttribute("categories", taxonomyService.listCategories());
+      model.addAttribute("articleId", id);
       return "article/editor";
     }
-    Article saved = articleService.createOrUpdate(id, form);
+    Article saved = articleService.createOrUpdate(id, normalizedForm);
     return "redirect:/";
   }
 
@@ -280,5 +298,15 @@ public class ArticleController {
     return ResponseEntity.ok()
       .contentType(uploadService.getMediaType(filename))
       .body(resource);
+  }
+
+  private Set<String> parseTags(String rawTags) {
+    if (rawTags == null || rawTags.isBlank()) {
+      return Set.of();
+    }
+    return Arrays.stream(rawTags.split(","))
+        .map(String::trim)
+        .filter(s -> !s.isBlank())
+        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
   }
 }

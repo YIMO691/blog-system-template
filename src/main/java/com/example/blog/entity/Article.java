@@ -27,7 +27,7 @@ public class Article {
   private String slug;
 
   @Lob
-  @Column(nullable = false)
+  @Column(nullable = false, columnDefinition = "LONGTEXT")
   private String content;
 
   @Column(nullable = false)

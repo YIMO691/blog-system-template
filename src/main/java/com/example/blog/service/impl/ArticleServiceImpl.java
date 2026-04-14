@@ -9,6 +9,7 @@ import com.example.blog.exception.NotFoundException;
 import com.example.blog.repository.ArticleLikeRepository;
 import com.example.blog.repository.ArticleRepository;
 import com.example.blog.service.ArticleService;
+import com.example.blog.service.MarkdownService;
 import com.example.blog.service.TaxonomyService;
 import com.example.blog.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class ArticleServiceImpl implements ArticleService {
   private final com.example.blog.repository.CommentLikeRepository commentLikeRepository;
   private final UserService userService;
   private final TaxonomyService taxonomyService;
+  private final MarkdownService markdownService;
 
   @Override
   @Transactional(readOnly = true)
@@ -333,10 +335,9 @@ public class ArticleServiceImpl implements ArticleService {
     return normalized + "-" + UUID.randomUUID().toString().substring(0, 8);
   }
 
-  private String makeSummary(String html, int length) {
-    if (html == null) return "";
-    String plain = html.replaceAll("<[^>]*>", " ");
-    plain = plain.replaceAll("&nbsp;", " ");
+  private String makeSummary(String content, int length) {
+    if (content == null) return "";
+    String plain = markdownService.toPlainText(content);
     plain = plain.replaceAll("\\s+", " ").trim();
     if (plain.length() <= length) return plain;
     return plain.substring(0, length) + "…";

@@ -12,7 +12,10 @@
   - 支持按最新、点赞数、浏览量排序
   - 文章详情支持浏览量与点赞
   - 管理员可创建、编辑、删除文章
-  - 编辑页支持本地图片上传并插入正文
+  - 编辑页支持 Markdown 渲染、普通写作 / Markdown 模式切换
+  - 编辑页支持 Markdown 语法辅助、实时预览、预览折叠展开与左右拖拽分栏
+  - 编辑页支持本地图片上传并插入正文，可根据模式自动插入 Markdown 或 HTML
+  - 文章正文数据库字段已扩展为 `LONGTEXT`，适配长篇内容
 
 - 评论与通知
   - 登录用户可发表评论与回复
@@ -61,10 +64,11 @@
 
 - 后端：Spring Boot 3.3.2、Spring MVC、Spring Data JPA、Hibernate
 - 安全：Spring Security
-- 视图：Thymeleaf、Bootstrap 5
+- 视图：Thymeleaf、Bootstrap 5、Marked.js
 - 数据库：MySQL
 - 迁移：Flyway
 - 邮件：Spring Mail
+- Markdown：CommonMark
 - 测试：JUnit 5、Spring Boot Test、H2
 - 构建：Maven
 
@@ -130,7 +134,9 @@ src/
 
 - `ArticleController` 负责首页、列表、详情、编辑、图片上传等入口
 - `ArticleServiceImpl` 负责筛选、排序、摘要生成、点赞、浏览量等业务逻辑
+- `MarkdownService` 负责 Markdown -> HTML 渲染与摘要纯文本提取
 - 文章支持分类和标签，多条件组合查询主要通过 JPA Specification 实现
+- 写文章页支持普通写作 / Markdown 模式切换、语法辅助、实时预览、预览折叠和拖拽分栏
 - 后台文章删除已支持异步局部更新
 
 ### 评论模块
@@ -258,6 +264,7 @@ mvn test
 
 - `SmokeTest`：验证 Spring 上下文能正常启动
 - `LocalUploadServiceTest`：验证本地上传服务的基本行为
+- `MarkdownServiceTest`：验证 Markdown 渲染与摘要文本提取
 
 ### CI
 

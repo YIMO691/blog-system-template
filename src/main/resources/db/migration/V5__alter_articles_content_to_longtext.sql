@@ -1,0 +1,2 @@
+ALTER TABLE articles
+    MODIFY COLUMN content LONGTEXT NOT NULL;

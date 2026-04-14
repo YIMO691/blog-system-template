@@ -93,3 +93,225 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .list-group-item {
   border-color: rgba(0, 0, 0, 0.05);
 }
+
+.markdown-toolbar {
+  border-bottom: 0 !important;
+}
+
+.editor-page {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.editor-form {
+  padding: 1.75rem !important;
+}
+
+.editor-mode-switch .btn {
+  min-width: 92px;
+}
+
+.editor-input-col {
+  transition: all 0.2s ease;
+}
+
+.editor-preview-col {
+  transition: all 0.2s ease;
+}
+
+.editor-input-col-full {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+.editor-resizer {
+  display: none;
+}
+
+.markdown-editor-input {
+  min-height: 560px;
+  resize: vertical;
+}
+
+.markdown-preview-shell {
+  position: sticky;
+  top: 1rem;
+}
+
+.markdown-preview-header {
+  background: #f8f9fa;
+}
+
+.markdown-preview {
+  height: 560px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.plain-preview {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+body.editor-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.article-content {
+  line-height: 1.8;
+  font-size: 1.03rem;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 1.4rem;
+  margin-bottom: 0.8rem;
+  font-weight: 700;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol,
+.markdown-body blockquote,
+.markdown-body pre,
+.markdown-body table {
+  margin-bottom: 1rem;
+}
+
+.markdown-body blockquote {
+  margin-left: 0;
+  padding: 0.75rem 1rem;
+  color: #6c757d;
+  border-left: 4px solid #0d6efd;
+  background: rgba(13, 110, 253, 0.05);
+}
+
+.markdown-body code {
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+  background: #f1f3f5;
+  color: #c7254e;
+}
+
+.markdown-body pre {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #212529;
+  color: #f8f9fa;
+  overflow-x: auto;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 0.75rem;
+  border: 1px solid #dee2e6;
+}
+
+.markdown-body thead th {
+  background: #f8f9fa;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+@media (max-width: 1399.98px) {
+  .markdown-editor-input {
+    min-height: 460px;
+  }
+
+  .markdown-preview {
+    height: 420px;
+  }
+
+  .markdown-preview-shell {
+    position: static;
+  }
+}
+
+@media (min-width: 1400px) {
+  .editor-workspace {
+    --editor-pane-width: 58%;
+    --preview-pane-width: 42%;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0 !important;
+  }
+
+  .editor-workspace > .editor-input-col {
+    flex: 0 0 var(--editor-pane-width);
+    max-width: var(--editor-pane-width);
+    padding-right: 0.75rem;
+  }
+
+  .editor-workspace > .editor-preview-col {
+    flex: 0 0 var(--preview-pane-width);
+    max-width: var(--preview-pane-width);
+    padding-left: 0.75rem;
+  }
+
+  .editor-workspace.preview-collapsed > .editor-input-col,
+  .editor-workspace.plain-mode > .editor-input-col,
+  .editor-input-col.editor-input-col-full {
+    flex-basis: 100%;
+    max-width: 100%;
+    padding-right: 0;
+  }
+
+  .editor-resizer {
+    display: block;
+    flex: 0 0 12px;
+    max-width: 12px;
+    position: relative;
+    cursor: col-resize;
+  }
+
+  .editor-resizer::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 4px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.35), rgba(13, 110, 253, 0.12));
+  }
+
+  .editor-resizer:hover::before {
+    background: linear-gradient(180deg, rgba(13, 110, 253, 0.25), rgba(13, 110, 253, 0.55), rgba(13, 110, 253, 0.25));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .editor-form {
+    padding: 1rem !important;
+  }
+
+  .editor-mode-switch {
+    width: 100%;
+  }
+
+  .editor-mode-switch .btn {
+    width: 50%;
+  }
+}

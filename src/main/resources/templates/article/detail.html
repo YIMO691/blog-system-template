@@ -44,7 +44,7 @@
     </div>
   </div>
 
-  <div class="mb-5" th:utext="${article.content}"></div>
+  <article class="mb-5 markdown-body article-content" th:utext="${renderedContent}"></article>
 
   <div class="mb-5" th:if="${!article.tags.isEmpty()}">
     <i class="bi bi-tags-fill text-muted me-2"></i>

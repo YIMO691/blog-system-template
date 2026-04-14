@@ -4,7 +4,7 @@
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
 
-<div class="container" style="max-width: 900px;">
+<div class="container-fluid px-3 px-lg-4 editor-page">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0 fw-bold"><i class="bi bi-pencil-square text-primary me-2"></i>写文章</h2>
     <a th:href="@{/articles}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>返回列表</a>
@@ -26,7 +26,7 @@
     </ul>
   </div>
 
-  <form th:action="@{/articles/editor}" th:object="${form}" method="post" class="card shadow-sm p-4 border-0">
+  <form th:action="@{/articles/editor}" th:object="${form}" method="post" class="card shadow-sm p-4 border-0 editor-form">
     <input type="hidden" name="id" th:value="${articleId}">
     
     <div class="row g-3 mb-3">
@@ -54,14 +54,55 @@
       <label class="form-label fw-bold">标签</label>
       <div class="input-group">
         <span class="input-group-text bg-light"><i class="bi bi-tags"></i></span>
-        <input class="form-control" name="tags" id="tagsInput" placeholder="输入标签，用英文逗号分隔（如：java, spring, boot）">
+        <input class="form-control" name="tags" id="tagsInput" th:value="${tagsValue}" placeholder="输入标签，用英文逗号分隔（如：java, spring, boot）">
       </div>
       <div class="form-text" id="tagsHelp">最多 6 个标签，用英文逗号分隔。</div>
     </div>
 
     <div class="mb-3">
-      <label class="form-label fw-bold">正文内容 <span class="text-danger">*</span></label>
-      <textarea class="form-control font-monospace" rows="18" th:field="*{content}" placeholder="支持 Markdown 格式..." style="font-size: 0.95rem;"></textarea>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-2">
+        <label class="form-label fw-bold mb-0">正文内容 <span class="text-danger">*</span></label>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <div class="btn-group btn-group-sm editor-mode-switch" role="group" aria-label="编辑模式切换">
+            <input type="radio" class="btn-check" name="editorMode" id="plainMode" autocomplete="off">
+            <label class="btn btn-outline-secondary" for="plainMode">普通写作</label>
+            <input type="radio" class="btn-check" name="editorMode" id="markdownMode" autocomplete="off" checked>
+            <label class="btn btn-outline-primary" for="markdownMode">Markdown</label>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="previewToggle">
+            <i class="bi bi-layout-sidebar-inset-reverse me-1"></i>折叠预览
+          </button>
+        </div>
+      </div>
+      <div class="form-text mb-2" id="editorModeHint">Markdown 模式下支持语法辅助和实时预览。</div>
+      <div class="row g-3 editor-workspace" id="editorWorkspace">
+        <div class="col-12 col-xxl-7 editor-input-col" id="editorInputCol">
+          <div id="markdownToolbar" class="markdown-toolbar border rounded-top px-2 py-2 bg-light d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary markdown-action" data-prefix="## " data-placeholder="二级标题">标题</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary markdown-action" data-wrap="**" data-placeholder="加粗内容">加粗</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary markdown-action" data-wrap="*" data-placeholder="斜体内容">斜体</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary markdown-action" data-prefix="> " data-placeholder="引用内容">引用</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary markdown-action" data-wrap="`" data-placeholder="代码">行内代码</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary markdown-action" data-block="```" data-placeholder="代码块">代码块</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary markdown-action" data-prefix="- " data-placeholder="列表项">列表</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary markdown-action" data-template="[链接文字](https://example.com)">链接</button>
+          </div>
+          <textarea class="form-control font-monospace markdown-editor-input rounded-top-0" rows="18" th:field="*{content}" placeholder="支持 Markdown 格式..." style="font-size: 0.95rem;"></textarea>
+        </div>
+        <div class="editor-resizer" id="editorResizer" role="separator" aria-orientation="vertical" aria-label="调整编辑区和预览区宽度"></div>
+        <div class="col-12 col-xxl-5 editor-preview-col" id="editorPreviewCol">
+          <div class="markdown-preview-shell border rounded bg-white">
+            <div class="markdown-preview-header px-3 py-2 border-bottom d-flex justify-content-between align-items-center gap-2">
+              <span class="text-muted small">实时预览</span>
+            </div>
+            <div id="markdownPreview" class="markdown-preview markdown-body p-3"></div>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-2">
+        <div class="form-text mb-0">支持标题、列表、引用、代码块、表格、链接和图片语法。</div>
+        <div class="small text-muted" id="contentStats">0 字</div>
+      </div>
       <div class="text-danger small" th:errors="*{content}"></div>
     </div>
     
@@ -71,7 +112,7 @@
         <input class="form-control" type="file" id="imageFile" accept="image/*">
         <button class="btn btn-outline-primary" type="button" id="uploadBtn">上传并插入</button>
       </div>
-      <div class="form-text">成功后自动插入到正文</div>
+      <div class="form-text" id="uploadHelp">成功后自动插入到正文</div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
@@ -86,77 +127,330 @@
   </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
+  (function () {
     const categorySelect = document.getElementById('categorySelect');
     const newCategoryInput = document.getElementById('newCategoryInput');
-    
-    categorySelect.addEventListener('change', function() {
-        if (this.value === '-1') {
-            newCategoryInput.style.display = 'block';
-            newCategoryInput.querySelector('input').focus();
-        } else {
-            newCategoryInput.style.display = 'none';
-            newCategoryInput.querySelector('input').value = '';
-        }
-    });
-    
     const uploadBtn = document.getElementById('uploadBtn');
     const imageFile = document.getElementById('imageFile');
     const contentArea = document.querySelector('textarea[name="content"]');
+    const preview = document.getElementById('markdownPreview');
+    const previewCol = document.getElementById('editorPreviewCol');
+    const inputCol = document.getElementById('editorInputCol');
+    const workspace = document.getElementById('editorWorkspace');
+    const resizer = document.getElementById('editorResizer');
+    const previewToggle = document.getElementById('previewToggle');
+    const stats = document.getElementById('contentStats');
+    const modeHint = document.getElementById('editorModeHint');
+    const uploadHelp = document.getElementById('uploadHelp');
+    const plainMode = document.getElementById('plainMode');
+    const markdownMode = document.getElementById('markdownMode');
+    const toolbar = document.getElementById('markdownToolbar');
     const tagsInput = document.getElementById('tagsInput');
     const tagsHelp = document.getElementById('tagsHelp');
+    const toolbarButtons = document.querySelectorAll('.markdown-action');
     const MAX_TAGS = 6;
-    function parseTags(v){
+    let previewCollapsed = false;
+    let isDragging = false;
+
+    function setPreviewToggleText() {
+      if (!previewToggle) return;
+      previewToggle.innerHTML = previewCollapsed
+        ? '<i class="bi bi-layout-sidebar-reverse me-1"></i>展开预览'
+        : '<i class="bi bi-layout-sidebar-inset-reverse me-1"></i>折叠预览';
+    }
+
+    function syncWorkspaceWidths() {
+      if (!workspace) return;
+      const isWideScreen = window.innerWidth >= 1400;
+      if (!isWideScreen || previewCollapsed || !isMarkdownMode()) {
+        workspace.style.removeProperty('--editor-pane-width');
+        workspace.style.removeProperty('--preview-pane-width');
+        return;
+      }
+      if (!workspace.style.getPropertyValue('--editor-pane-width')) {
+        workspace.style.setProperty('--editor-pane-width', '58%');
+        workspace.style.setProperty('--preview-pane-width', '42%');
+      }
+    }
+
+    function updatePreviewVisibility() {
+      const markdownEnabled = isMarkdownMode();
+      const shouldShowPreview = markdownEnabled && !previewCollapsed;
+      if (previewToggle) {
+        previewToggle.classList.toggle('d-none', !markdownEnabled);
+      }
+      if (previewCol) {
+        previewCol.classList.toggle('d-none', !shouldShowPreview);
+      }
+      if (resizer) {
+        resizer.classList.toggle('d-none', !shouldShowPreview);
+      }
+      if (inputCol) {
+        inputCol.classList.toggle('editor-input-col-full', !shouldShowPreview);
+      }
+      if (workspace) {
+        workspace.classList.toggle('preview-collapsed', !shouldShowPreview);
+      }
+      setPreviewToggleText();
+      syncWorkspaceWidths();
+    }
+
+    function isMarkdownMode() {
+      return !!markdownMode?.checked;
+    }
+
+    function detectInitialMode() {
+      const value = contentArea?.value || '';
+      return /<[^>]+>/.test(value) ? 'plain' : 'markdown';
+    }
+
+    function parseTags(v) {
       return (v || '').split(',').map(s => s.trim()).filter(s => s.length > 0);
     }
-    function uniqueKeepOrder(arr){
-      const seen = new Set(); const out = [];
-      for (const s of arr){
+
+    function uniqueKeepOrder(arr) {
+      const seen = new Set();
+      const out = [];
+      for (const s of arr) {
         const k = s.toLowerCase();
-        if (!seen.has(k)){ seen.add(k); out.push(s); }
+        if (!seen.has(k)) {
+          seen.add(k);
+          out.push(s);
+        }
       }
       return out;
     }
-    function enforceTags(){
+
+    function enforceTags() {
+      if (!tagsInput) return;
       let tags = uniqueKeepOrder(parseTags(tagsInput.value));
-      if (tags.length > MAX_TAGS){
+      if (tags.length > MAX_TAGS) {
         alert('最多可添加 6 个标签，已自动截断多余标签');
         tags = tags.slice(0, MAX_TAGS);
-        tagsInput.value = tags.join(', ');
       }
-      if (tagsHelp){
+      tagsInput.value = tags.join(', ');
+      if (tagsHelp) {
         tagsHelp.textContent = `最多 6 个标签，已填写 ${tags.length}/${MAX_TAGS}`;
       }
     }
-    if (tagsInput){
+
+    function updateCategoryInput() {
+      if (!categorySelect || !newCategoryInput) return;
+      const input = newCategoryInput.querySelector('input');
+      if (categorySelect.value === '-1') {
+        newCategoryInput.style.display = 'block';
+      } else {
+        newCategoryInput.style.display = 'none';
+        if (input) {
+          input.value = '';
+        }
+      }
+    }
+
+    function escapeHtml(value) {
+      return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderPreview() {
+      if (!contentArea || !preview) return;
+      const value = contentArea.value || '';
+      const charCount = value.replace(/\s+/g, '').length;
+      if (stats) {
+        stats.textContent = `${charCount} 字`;
+      }
+      if (!isMarkdownMode()) {
+        preview.innerHTML = `<pre class="mb-0 plain-preview">${escapeHtml(value || '普通写作模式下不显示 Markdown 预览。')}</pre>`;
+        return;
+      }
+      if (!value.trim()) {
+        preview.innerHTML = '<p class="text-muted mb-0">Markdown 预览会显示在这里。</p>';
+        return;
+      }
+      if (window.marked) {
+        preview.innerHTML = marked.parse(value, { breaks: true, gfm: true });
+      } else {
+        preview.innerHTML = `<pre class="mb-0">${escapeHtml(value)}</pre>`;
+      }
+    }
+
+    function replaceSelection(before, after, fallback) {
+      if (!contentArea) return;
+      const start = contentArea.selectionStart ?? contentArea.value.length;
+      const end = contentArea.selectionEnd ?? contentArea.value.length;
+      const selected = contentArea.value.slice(start, end) || fallback;
+      const inserted = before + selected + after;
+      contentArea.setRangeText(inserted, start, end, 'end');
+      contentArea.focus();
+      renderPreview();
+    }
+
+    function insertTemplate(template) {
+      if (!contentArea) return;
+      const start = contentArea.selectionStart ?? contentArea.value.length;
+      const end = contentArea.selectionEnd ?? contentArea.value.length;
+      contentArea.setRangeText(template, start, end, 'end');
+      contentArea.focus();
+      renderPreview();
+    }
+
+    function updateEditorMode() {
+      const markdownEnabled = isMarkdownMode();
+      if (toolbar) {
+        toolbar.classList.toggle('d-none', !markdownEnabled);
+      }
+      if (workspace) {
+        workspace.classList.toggle('plain-mode', !markdownEnabled);
+      }
+      if (contentArea) {
+        contentArea.classList.toggle('rounded-top-0', markdownEnabled);
+        contentArea.placeholder = markdownEnabled
+          ? '支持 Markdown 格式...'
+          : '普通写作模式：直接输入正文即可，也可以粘贴 HTML 内容...';
+      }
+      if (modeHint) {
+        modeHint.textContent = markdownEnabled
+          ? 'Markdown 模式下支持语法辅助和实时预览。'
+          : '普通写作模式下隐藏 Markdown 工具栏和预览区，专注正文输入。';
+      }
+      if (uploadHelp) {
+        uploadHelp.textContent = markdownEnabled
+          ? '成功后自动以 Markdown 图片语法插入正文'
+          : '成功后自动以 HTML 图片标签插入正文';
+      }
+      if (!markdownEnabled) {
+        previewCollapsed = true;
+      } else if (previewToggle && previewCollapsed) {
+        previewCollapsed = false;
+      }
+      updatePreviewVisibility();
+      renderPreview();
+    }
+
+    function handlePointerMove(event) {
+      if (!isDragging || !workspace) return;
+      const rect = workspace.getBoundingClientRect();
+      const nextWidth = ((event.clientX - rect.left) / rect.width) * 100;
+      const clamped = Math.min(75, Math.max(35, nextWidth));
+      workspace.style.setProperty('--editor-pane-width', `${clamped}%`);
+      workspace.style.setProperty('--preview-pane-width', `${100 - clamped}%`);
+    }
+
+    function stopDragging() {
+      isDragging = false;
+      document.body.classList.remove('editor-resizing');
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopDragging);
+    }
+
+    toolbarButtons.forEach(button => {
+      button.addEventListener('click', function () {
+        const placeholder = button.dataset.placeholder || '内容';
+        if (button.dataset.wrap) {
+          replaceSelection(button.dataset.wrap, button.dataset.wrap, placeholder);
+          return;
+        }
+        if (button.dataset.prefix) {
+          replaceSelection(button.dataset.prefix, '', placeholder);
+          return;
+        }
+        if (button.dataset.block) {
+          replaceSelection(`${button.dataset.block}\n`, `\n${button.dataset.block}`, placeholder);
+          return;
+        }
+        if (button.dataset.template) {
+          insertTemplate(button.dataset.template);
+        }
+      });
+    });
+
+    if (categorySelect) {
+      categorySelect.addEventListener('change', function () {
+        updateCategoryInput();
+        if (this.value === '-1') {
+          newCategoryInput.querySelector('input')?.focus();
+        }
+      });
+      updateCategoryInput();
+    }
+
+    if (tagsInput) {
       tagsInput.addEventListener('input', enforceTags);
       tagsInput.addEventListener('blur', enforceTags);
+      enforceTags();
     }
-    uploadBtn.addEventListener('click', async function() {
-      if (!imageFile.files || imageFile.files.length === 0) return;
-      const fd = new FormData();
-      fd.append('file', imageFile.files[0]);
-      const token = document.querySelector('meta[name=\"_csrf\"]')?.getAttribute('content');
-      const headerName = document.querySelector('meta[name=\"_csrf_header\"]')?.getAttribute('content');
-      const headers = {};
-      if (token && headerName) { headers[headerName] = token; }
-      const resp = await fetch('/articles/upload-image', { method: 'POST', headers, body: fd });
-      const data = await resp.json();
-      if (data && data.url) {
-        const insert = `<img src="${data.url}" alt="" style="max-width:100%;">`;
-        const start = contentArea.selectionStart || contentArea.value.length;
-        const end = contentArea.selectionEnd || contentArea.value.length;
-        contentArea.value = contentArea.value.substring(0, start) + insert + contentArea.value.substring(end);
-        contentArea.focus();
-      } else {
-        alert('上传失败');
+
+    if (contentArea) {
+      contentArea.addEventListener('input', renderPreview);
+      const initialMode = detectInitialMode();
+      if (plainMode && markdownMode) {
+        plainMode.checked = initialMode === 'plain';
+        markdownMode.checked = initialMode !== 'plain';
+        plainMode.addEventListener('change', updateEditorMode);
+        markdownMode.addEventListener('change', updateEditorMode);
       }
-    });
+      updateEditorMode();
+    }
+
+    if (previewToggle) {
+      previewToggle.addEventListener('click', function () {
+        if (!isMarkdownMode()) return;
+        previewCollapsed = !previewCollapsed;
+        updatePreviewVisibility();
+      });
+      setPreviewToggleText();
+    }
+
+    if (resizer) {
+      resizer.addEventListener('pointerdown', function (event) {
+        if (window.innerWidth < 1400 || previewCollapsed || !isMarkdownMode()) return;
+        isDragging = true;
+        document.body.classList.add('editor-resizing');
+        resizer.setPointerCapture?.(event.pointerId);
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', stopDragging);
+      });
+    }
+
+    window.addEventListener('resize', syncWorkspaceWidths);
+
+    if (uploadBtn && imageFile) {
+      uploadBtn.addEventListener('click', async function () {
+        if (!imageFile.files || imageFile.files.length === 0) return;
+        const fd = new FormData();
+        fd.append('file', imageFile.files[0]);
+        const token = document.querySelector('meta[name=\"_csrf\"]')?.getAttribute('content');
+        const headerName = document.querySelector('meta[name=\"_csrf_header\"]')?.getAttribute('content');
+        const headers = {};
+        if (token && headerName) {
+          headers[headerName] = token;
+        }
+        const resp = await fetch('/articles/upload-image', { method: 'POST', headers, body: fd });
+        const data = await resp.json();
+        if (data && data.url) {
+          const insert = isMarkdownMode()
+            ? `\n![图片描述](${data.url})\n`
+            : `\n<img src="${data.url}" alt="" style="max-width:100%;">\n`;
+          insertTemplate(insert);
+          imageFile.value = '';
+        } else {
+          alert(data?.error || '上传失败');
+        }
+      });
+    }
+  })();
 </script>
 <div th:replace="~{fragments/footer :: footer}"></div>
 <script>
   (function(){
     const form = document.querySelector('form[action$="/articles/editor"]') || document.querySelector('form');
+    const newCategoryInput = document.getElementById('newCategoryInput');
     const inputs = [
       document.querySelector('input[name="title"]'),
       document.querySelector('select[name="categoryId"]'),
