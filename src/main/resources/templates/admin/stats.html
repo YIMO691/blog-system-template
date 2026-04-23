@@ -50,6 +50,9 @@
           <span class="me-3"><i class="bi bi-check-circle me-1"></i><span th:text="${articlePublishedCount}">0</span> 已发布</span>
           <span><i class="bi bi-file-earmark me-1"></i><span th:text="${articleDraftCount}">0</span> 草稿</span>
         </div>
+        <div class="small mt-2 d-flex align-items-center">
+          <span><i class="bi bi-pause-circle me-1"></i><span th:text="${articleOfflineCount}">0</span> 已下架</span>
+        </div>
       </div>
     </div>
     <div class="col-md-6 col-lg-3">
@@ -158,8 +161,8 @@
     </div>
   </div>
 
-  <div class="card shadow-sm border-0">
-    <div class="card-header bg-white py-3 fw-bold"><i class="bi bi-cpu me-2"></i>系统运行环境</div>
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 fw-bold"><i class="bi bi-cpu me-2"></i>系统运行状态</div>
     <div class="card-body">
         <div class="row g-3">
             <div class="col-md-6">
@@ -178,7 +181,50 @@
                 <label class="text-muted small">JVM 空闲内存</label>
                 <div class="fw-bold font-monospace text-success" th:text="${jvmFreeMemory}"></div>
             </div>
+            <div class="col-md-6">
+                <label class="text-muted small">JVM 最大内存</label>
+                <div class="fw-bold font-monospace" th:text="${jvmMaxMemory}"></div>
+            </div>
+            <div class="col-md-6">
+                <label class="text-muted small">数据库状态</label>
+                <div class="fw-bold" th:text="${databaseStatus}"></div>
+            </div>
+            <div class="col-md-6">
+                <label class="text-muted small">上传目录可用空间</label>
+                <div class="fw-bold font-monospace" th:text="${uploadFreeSpace}"></div>
+            </div>
+            <div class="col-md-6">
+                <label class="text-muted small">最近 7 天登录失败次数</label>
+                <div class="fw-bold" th:text="${recentFailedLoginCount}"></div>
+            </div>
         </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 fw-bold"><i class="bi bi-clock-history me-2"></i>最近操作日志</div>
+    <div class="card-body">
+      <div th:if="${#lists.isEmpty(recentActionLogs)}" class="text-muted">暂无操作日志</div>
+      <div class="table-responsive" th:if="${!#lists.isEmpty(recentActionLogs)}">
+        <table class="table align-middle mb-0">
+          <thead>
+          <tr>
+            <th>时间</th>
+            <th>用户</th>
+            <th>动作</th>
+            <th>详情</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="log : ${recentActionLogs}">
+            <td th:text="${log.time != null ? #temporals.format(log.time, 'yyyy-MM-dd HH:mm', 'GMT+8') : '-'}">-</td>
+            <td th:text="${log.user != null and log.user.username != null ? log.user.username : '-'}">-</td>
+            <td th:text="${log.action}">-</td>
+            <td th:text="${log.detail}">-</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
