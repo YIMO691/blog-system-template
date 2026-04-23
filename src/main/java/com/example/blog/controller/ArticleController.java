@@ -1,5 +1,6 @@
 package com.example.blog.controller;
 
+import com.example.blog.common.ArticleStatus;
 import com.example.blog.common.api.ApiResponses;
 import com.example.blog.dto.ArticleForm;
 import com.example.blog.dto.CommentForm;
@@ -213,10 +214,11 @@ public class ArticleController {
     if (!drafts.isEmpty()) {
       model.addAttribute("drafts", drafts);
     }
-    model.addAttribute("form", new ArticleForm("", "", false, null, null, Set.of()));
+    model.addAttribute("form", new ArticleForm("", "", ArticleStatus.DRAFT, null, null, Set.of()));
     model.addAttribute("tagsValue", "");
     model.addAttribute("categories", taxonomyService.listCategories());
     model.addAttribute("articleId", null);
+    model.addAttribute("article", null);
     return "article/editor";
   }
 
@@ -236,7 +238,7 @@ public class ArticleController {
     model.addAttribute("form", new ArticleForm(
         a.getTitle(), 
         a.getContent(), 
-        a.isPublished(), 
+        a.getStatus(),
         a.getCategory() != null ? a.getCategory().getId() : null, 
         null,
         tagNames
@@ -244,6 +246,7 @@ public class ArticleController {
     model.addAttribute("tagsValue", String.join(", ", tagNames));
     model.addAttribute("categories", taxonomyService.listCategories());
     model.addAttribute("articleId", id);
+    model.addAttribute("article", a);
     return "article/editor";
   }
 
@@ -260,7 +263,7 @@ public class ArticleController {
     ArticleForm normalizedForm = new ArticleForm(
         form.title(),
         form.content(),
-        form.published(),
+        form.status(),
         form.categoryId(),
         form.newCategory(),
         parseTags(tags)
@@ -269,10 +272,11 @@ public class ArticleController {
       model.addAttribute("tagsValue", tags == null ? "" : tags);
       model.addAttribute("categories", taxonomyService.listCategories());
       model.addAttribute("articleId", id);
+      model.addAttribute("article", id == null ? null : articleService.getById(id));
       return "article/editor";
     }
     Article saved = articleService.createOrUpdate(id, normalizedForm);
-    return "redirect:/";
+    return "redirect:/articles/editor/" + saved.getId() + "?saved";
   }
 
   @PostMapping("/{id}/delete")

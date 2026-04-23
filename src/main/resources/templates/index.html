@@ -23,9 +23,7 @@
            th:href="@{/articles/{slug}(slug=${a.slug})}">
           <div class="d-flex w-100 justify-content-between align-items-center mb-2">
             <h4 class="mb-1 article-title" th:text="${a.title}">title</h4>
-            <span class="badge rounded-pill" 
-                  th:classappend="${a.published} ? 'bg-success' : 'bg-warning text-dark'"
-                  th:text="${a.published} ? '已发布' : '草稿'"></span>
+            <span class="badge rounded-pill bg-success">已发布</span>
           </div>
           <p class="text-secondary small mb-3 text-truncate" th:text="${a.summary}">Content preview...</p>
           <div class="mb-2" th:if="${!a.tags.isEmpty()}">

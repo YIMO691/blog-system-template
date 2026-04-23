@@ -13,12 +13,15 @@
   <div th:if="${drafts != null}" class="alert alert-info shadow-sm border-info">
     <div class="d-flex align-items-center mb-2">
       <i class="bi bi-journal-bookmark me-2 fs-5"></i>
-      <strong class="fs-6">您有未发布的草稿：</strong>
+      <strong class="fs-6">您有未发布文章：</strong>
     </div>
     <ul class="mb-0 list-unstyled ps-4">
       <li th:each="d : ${drafts}" class="mb-1">
         <i class="bi bi-caret-right-fill text-muted small me-1"></i>
         <span class="fw-bold text-dark" th:text="${d.title.isBlank() ? '（无标题）' : d.title}"></span>
+        <span class="badge ms-2"
+              th:classappend="${d.status.name() == 'OFFLINE'} ? 'bg-warning text-dark' : 'bg-secondary'"
+              th:text="${d.status.name() == 'OFFLINE'} ? '已下架' : '草稿'">状态</span>
         <small class="text-muted ms-2" th:if="${d.updatedAt != null}" 
                th:text="${#temporals.format(d.updatedAt, 'yyyy-MM-dd HH:mm', 'GMT+8')}"></small>
         <a class="ms-2 badge bg-primary text-decoration-none" th:href="@{/articles/editor/{id}(id=${d.id})}">继续编辑</a>
@@ -28,6 +31,19 @@
 
   <form th:action="@{/articles/editor}" th:object="${form}" method="post" class="card shadow-sm p-4 border-0 editor-form">
     <input type="hidden" name="id" th:value="${articleId}">
+    <input type="hidden" th:field="*{status}" id="articleStatusInput">
+
+    <div th:if="${param.saved}" class="alert alert-success shadow-sm">
+      文章已保存。
+    </div>
+
+    <div th:if="${article != null}" class="alert shadow-sm"
+         th:classappend="${article.status.name() == 'OFFLINE'} ? 'alert-warning' : 'alert-light'">
+      <div class="fw-bold mb-1">
+        当前状态：
+        <span th:text="${article.status.name() == 'PUBLISHED'} ? '已发布' : (${article.status.name() == 'OFFLINE'} ? '已下架' : '草稿')">状态</span>
+      </div>
+    </div>
     
     <div class="row g-3 mb-3">
         <div class="col-md-8">
@@ -115,14 +131,18 @@
       <div class="form-text" id="uploadHelp">成功后自动插入到正文</div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" th:field="*{published}" id="publishSwitch">
-          <label class="form-check-label fw-bold" for="publishSwitch">立即发布</label>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pt-3 border-top mt-2">
+        <div class="text-muted small">
+          仅博主或管理员可写文章，支持保存草稿和直接发布。
         </div>
-        <button class="btn btn-success btn-lg px-5 rounded-pill shadow-sm" type="submit">
-            <i class="bi bi-save me-2"></i>保存文章
-        </button>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-outline-secondary rounded-pill px-4 article-submit-action" type="submit" data-status="DRAFT">
+            <i class="bi bi-save me-1"></i>保存草稿
+          </button>
+          <button class="btn btn-success rounded-pill px-4 article-submit-action" type="submit" data-status="PUBLISHED">
+            <i class="bi bi-check2-circle me-1"></i>发布文章
+          </button>
+        </div>
     </div>
   </form>
 </div>
@@ -149,6 +169,7 @@
     const toolbar = document.getElementById('markdownToolbar');
     const tagsInput = document.getElementById('tagsInput');
     const tagsHelp = document.getElementById('tagsHelp');
+    const articleStatusInput = document.getElementById('articleStatusInput');
     const toolbarButtons = document.querySelectorAll('.markdown-action');
     const MAX_TAGS = 6;
     let previewCollapsed = false;
@@ -458,10 +479,17 @@
       newCategoryInput?.querySelector('input[name="newCategory"]'),
       document.querySelector('input[name="tags"]'),
       document.querySelector('textarea[name="content"]'),
-      document.querySelector('input[name="published"]')
+      document.querySelector('input[name="status"]')
     ].filter(Boolean);
     let dirty = false;
     let isSubmitting = false;
+    document.querySelectorAll('.article-submit-action').forEach(button => {
+      button.addEventListener('click', function () {
+        if (articleStatusInput) {
+          articleStatusInput.value = button.dataset.status || 'DRAFT';
+        }
+      });
+    });
     inputs.forEach(el => el.addEventListener('input', ()=> dirty = true));
     inputs.forEach(el => el.addEventListener('change', ()=> dirty = true));
     if (form){

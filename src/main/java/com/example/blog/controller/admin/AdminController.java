@@ -1,7 +1,9 @@
 package com.example.blog.controller.admin;
 
 import com.example.blog.common.AdminPermission;
+import com.example.blog.common.ArticleStatus;
 import com.example.blog.common.api.ApiResponses;
+import com.example.blog.config.UploadProperties;
 import com.example.blog.exception.BadRequestException;
 import com.example.blog.exception.ForbiddenException;
 import com.example.blog.repository.ArticleRepository;
@@ -12,6 +14,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import javax.sql.DataSource;
+import java.io.File;
+import java.sql.Connection;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -31,6 +36,10 @@ public class AdminController {
   private final com.example.blog.service.UserService userService;
   private final com.example.blog.service.NotificationService notificationService;
   private final com.example.blog.repository.TagRepository tagRepository;
+  private final com.example.blog.repository.LoginRecordRepository loginRecordRepository;
+  private final com.example.blog.repository.ActionLogRepository actionLogRepository;
+  private final DataSource dataSource;
+  private final UploadProperties uploadProperties;
 
   @GetMapping
   public String dashboard() {
@@ -104,8 +113,9 @@ public class AdminController {
     }
     // Article Stats
     model.addAttribute("articleCount", articleRepository.count());
-    model.addAttribute("articlePublishedCount", articleRepository.countByPublishedTrue());
-    model.addAttribute("articleDraftCount", articleRepository.countByPublishedFalse());
+    model.addAttribute("articlePublishedCount", articleRepository.countByStatus(ArticleStatus.PUBLISHED));
+    model.addAttribute("articleDraftCount", articleRepository.countByStatus(ArticleStatus.DRAFT));
+    model.addAttribute("articleOfflineCount", articleRepository.countByStatus(ArticleStatus.OFFLINE));
     model.addAttribute("totalViews", articleRepository.sumViews());
     model.addAttribute("totalLikes", articleRepository.sumLikes());
 
@@ -129,8 +139,8 @@ public class AdminController {
     model.addAttribute("categoryCounts", categoryCounts);
 
     // Top 5 Articles by Views / Likes
-    var topViews = articleRepository.findTop5ProjectedByPublishedTrueOrderByViewsDesc(PageRequest.of(0, 5));
-    var topLikes = articleRepository.findTop5ProjectedByPublishedTrueOrderByLikesDesc(PageRequest.of(0, 5));
+    var topViews = articleRepository.findTopProjectedByStatusOrderByViewsDesc(ArticleStatus.PUBLISHED, PageRequest.of(0, 5));
+    var topLikes = articleRepository.findTopProjectedByStatusOrderByLikesDesc(ArticleStatus.PUBLISHED, PageRequest.of(0, 5));
     model.addAttribute("topViewsTitles", topViews.stream().map(com.example.blog.repository.projection.ArticleStatsProjection::getTitle).toList());
     model.addAttribute("topViewsValues", topViews.stream().map(p -> p.getViews() == null ? 0 : p.getViews()).toList());
     model.addAttribute("topLikesTitles", topLikes.stream().map(com.example.blog.repository.projection.ArticleStatsProjection::getTitle).toList());
@@ -148,7 +158,7 @@ public class AdminController {
     model.addAttribute("tagTopNames", tagTopNames);
     model.addAttribute("tagTopCounts", tagTopCounts);
     // Recent 10 articles by views
-    var recentArticles = articleRepository.findRecentPublishedProjected(org.springframework.data.domain.PageRequest.of(0, 10));
+    var recentArticles = articleRepository.findRecentProjectedByStatus(ArticleStatus.PUBLISHED, org.springframework.data.domain.PageRequest.of(0, 10));
     var recentTitles = recentArticles.stream().map(com.example.blog.repository.projection.ArticleStatsProjection::getTitle).toList();
     var recentViews = recentArticles.stream().map(p -> p.getViews() == null ? 0 : p.getViews()).toList();
     model.addAttribute("recentTitles", recentTitles);
@@ -185,6 +195,13 @@ public class AdminController {
     model.addAttribute("javaVersion", System.getProperty("java.version"));
     model.addAttribute("jvmMemory", Runtime.getRuntime().totalMemory() / 1024 / 1024 + " MB");
     model.addAttribute("jvmFreeMemory", Runtime.getRuntime().freeMemory() / 1024 / 1024 + " MB");
+    model.addAttribute("jvmMaxMemory", Runtime.getRuntime().maxMemory() / 1024 / 1024 + " MB");
+    model.addAttribute("databaseStatus", checkDatabaseStatus());
+    model.addAttribute("uploadFreeSpace", resolveUploadFreeSpace());
+    model.addAttribute("recentFailedLoginCount",
+        loginRecordRepository.countBySuccessFalseAndTimeAfter(Instant.now().minusSeconds(7 * 24 * 3600L)));
+    model.addAttribute("recentActionLogs",
+        actionLogRepository.findAllByOrderByTimeDesc(PageRequest.of(0, 5)).getContent());
 
     return "admin/stats";
   }
@@ -232,6 +249,52 @@ public class AdminController {
       articleService.delete(id);
       if (ajaxRequest) {
         return ApiResponses.success("文章已删除", java.util.Map.of("id", id));
+      }
+      return "redirect:/admin/articles";
+    } catch (ForbiddenException ex) {
+      if (ajaxRequest) {
+        throw ex;
+      }
+      return "redirect:/admin?error=no_permission";
+    }
+  }
+
+  @PostMapping("/articles/{id}/publish")
+  @ResponseBody
+  public Object publishArticle(@PathVariable Long id,
+                               @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
+    boolean ajaxRequest = isAjaxRequest(requestedWith);
+    try {
+      userService.assertCanManageArticles();
+      var article = articleService.publish(id);
+      if (ajaxRequest) {
+        return ApiResponses.success("文章已发布", java.util.Map.of(
+            "id", article.getId(),
+            "status", article.getStatus().name()
+        ));
+      }
+      return "redirect:/admin/articles";
+    } catch (ForbiddenException ex) {
+      if (ajaxRequest) {
+        throw ex;
+      }
+      return "redirect:/admin?error=no_permission";
+    }
+  }
+
+  @PostMapping("/articles/{id}/offline")
+  @ResponseBody
+  public Object offlineArticle(@PathVariable Long id,
+                               @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
+    boolean ajaxRequest = isAjaxRequest(requestedWith);
+    try {
+      userService.assertCanManageArticles();
+      var article = articleService.offline(id);
+      if (ajaxRequest) {
+        return ApiResponses.success("文章已下架", java.util.Map.of(
+            "id", article.getId(),
+            "status", article.getStatus().name()
+        ));
       }
       return "redirect:/admin/articles";
     } catch (ForbiddenException ex) {
@@ -341,5 +404,23 @@ public class AdminController {
     } catch (ForbiddenException ex) {
       return false;
     }
+  }
+
+  private String checkDatabaseStatus() {
+    try (Connection connection = dataSource.getConnection()) {
+      return connection.isValid(2) ? "正常" : "异常";
+    } catch (Exception ex) {
+      return "异常";
+    }
+  }
+
+  private String resolveUploadFreeSpace() {
+    File uploadDir = new File(uploadProperties.getDir());
+    File target = uploadDir.exists() ? uploadDir : uploadDir.getAbsoluteFile().getParentFile();
+    if (target == null) {
+      target = uploadDir.getAbsoluteFile();
+    }
+    long freeSpace = target.getFreeSpace() / 1024 / 1024;
+    return freeSpace + " MB";
   }
 }

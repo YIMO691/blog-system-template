@@ -19,15 +19,22 @@
       <td th:text="${a.id}"></td>
       <td th:text="${a.title}"></td>
       <td>
-        <span class="badge bg-success" th:if="${a.published}">已发布</span>
-        <span class="badge bg-secondary" th:if="${!a.published}">草稿</span>
+        <span class="badge bg-secondary" th:if="${a.status.name() == 'DRAFT'}">草稿</span>
+        <span class="badge bg-success" th:if="${a.status.name() == 'PUBLISHED'}">已发布</span>
+        <span class="badge bg-warning text-dark" th:if="${a.status.name() == 'OFFLINE'}">已下架</span>
       </td>
       <td th:if="${a.createdAt != null}" 
           th:text="${#temporals.format(a.createdAt, 'yyyy-MM-dd HH:mm', 'GMT+8')}"></td>
       <td th:if="${a.createdAt == null}">-</td>
       <td>
-        <div class="btn-group btn-group-sm">
+        <div class="btn-group btn-group-sm flex-wrap">
           <a class="btn btn-outline-primary" th:href="@{/articles/editor/{id}(id=${a.id})}">编辑</a>
+          <form th:if="${a.status.name() == 'DRAFT' or a.status.name() == 'OFFLINE'}" th:action="@{/admin/articles/{id}/publish(id=${a.id})}" method="post" class="admin-article-publish-form">
+            <button type="submit" class="btn btn-outline-success" th:text="${a.status.name() == 'OFFLINE'} ? '重新发布' : '发布'">发布</button>
+          </form>
+          <form th:if="${a.status.name() == 'PUBLISHED'}" th:action="@{/admin/articles/{id}/offline(id=${a.id})}" method="post" class="admin-article-offline-form">
+            <button type="submit" class="btn btn-outline-warning">下架</button>
+          </form>
           <form th:action="@{/admin/articles/{id}/delete(id=${a.id})}" method="post" class="admin-article-delete-form"
                 onsubmit="return confirm('确定要删除这篇文章吗？')">
             <button type="submit" class="btn btn-outline-danger" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">删除</button>
@@ -91,6 +98,41 @@
           showFeedback(data.message || '文章已删除', 'success');
         } catch (e) {
           showFeedback(e.message && !e.message.includes('Unexpected') ? e.message : '删除失败，请稍后重试', 'danger');
+        } finally {
+          if (button) button.disabled = false;
+        }
+      });
+    });
+    document.querySelectorAll('.admin-article-publish-form').forEach(function (form) {
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const row = form.closest('.article-row');
+        const button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+        try {
+          const response = await fetch(form.action, { method: 'POST', headers: buildHeaders() });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.message || 'publish_failed');
+          window.location.reload();
+        } catch (e) {
+          showFeedback(e.message && !e.message.includes('Unexpected') ? e.message : '发布失败，请稍后重试', 'danger');
+        } finally {
+          if (button) button.disabled = false;
+        }
+      });
+    });
+    document.querySelectorAll('.admin-article-offline-form').forEach(function (form) {
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+        try {
+          const response = await fetch(form.action, { method: 'POST', headers: buildHeaders() });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.message || 'offline_failed');
+          window.location.reload();
+        } catch (e) {
+          showFeedback(e.message && !e.message.includes('Unexpected') ? e.message : '下架失败，请稍后重试', 'danger');
         } finally {
           if (button) button.disabled = false;
         }

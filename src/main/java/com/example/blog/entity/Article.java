@@ -1,5 +1,6 @@
 package com.example.blog.entity;
 
+import com.example.blog.common.ArticleStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,7 +10,7 @@ import java.util.Set;
 
 @Entity
 @Table(name = "articles", indexes = {
-    @Index(name = "idx_articles_published", columnList = "published"),
+    @Index(name = "idx_articles_status", columnList = "status"),
     @Index(name = "idx_articles_createdAt", columnList = "createdAt")
 })
 @Getter @Setter
@@ -30,8 +31,14 @@ public class Article {
   @Column(nullable = false, columnDefinition = "LONGTEXT")
   private String content;
 
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 30)
+  @Builder.Default
+  private ArticleStatus status = ArticleStatus.DRAFT;
+
   @Column(nullable = false)
-  private boolean published;
+  @Builder.Default
+  private boolean published = false;
 
   @ManyToOne(optional = false, fetch = FetchType.LAZY)
   @JoinColumn(name = "author_id")
@@ -55,9 +62,11 @@ public class Article {
   private Instant updatedAt;
 
   @Column(nullable = false)
+  @Builder.Default
   private long views = 0;
 
   @Column(nullable = false)
+  @Builder.Default
   private int likes = 0;
 
   @Transient
@@ -68,10 +77,25 @@ public class Article {
     Instant now = Instant.now();
     if (createdAt == null) createdAt = now;
     if (updatedAt == null) updatedAt = now;
+    if (status == null) status = ArticleStatus.DRAFT;
+    syncPublishedFromStatus();
   }
 
   @PreUpdate
   public void preUpdate() {
     updatedAt = Instant.now();
+    if (status == null) {
+      status = published ? ArticleStatus.PUBLISHED : ArticleStatus.DRAFT;
+    }
+    syncPublishedFromStatus();
+  }
+
+  public void setStatus(ArticleStatus status) {
+    this.status = status == null ? ArticleStatus.DRAFT : status;
+    syncPublishedFromStatus();
+  }
+
+  private void syncPublishedFromStatus() {
+    this.published = this.status == ArticleStatus.PUBLISHED;
   }
 }
