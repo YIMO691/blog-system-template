@@ -35,6 +35,7 @@ public class SecurityConfig {
                             "/auth/**",
                             "/error", "/error/**",
                             "/favicon.ico",
+                            "/@vite/**", "/@react-refresh",
                             "/css/**", "/js/**", "/images/**",
                             "/actuator/health", "/actuator/health/**"
                     ).permitAll()
