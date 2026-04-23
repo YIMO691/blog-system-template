@@ -20,7 +20,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
   @org.springframework.data.jpa.repository.Query("""
       SELECT c.article.title, COUNT(c)
       FROM Comment c
-      WHERE c.approved = true AND c.article IS NOT NULL AND c.article.published = true
+      WHERE c.approved = true AND c.article IS NOT NULL AND c.article.status = com.example.blog.common.ArticleStatus.PUBLISHED
       GROUP BY c.article.title
       ORDER BY COUNT(c) DESC
       """)

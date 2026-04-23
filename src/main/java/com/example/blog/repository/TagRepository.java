@@ -12,7 +12,7 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
   @org.springframework.data.jpa.repository.Query("""
       SELECT t.name, COUNT(a)
       FROM Article a JOIN a.tags t
-      WHERE a.published = true
+      WHERE a.status = com.example.blog.common.ArticleStatus.PUBLISHED
       GROUP BY t.name
       ORDER BY COUNT(a) DESC
       """)
