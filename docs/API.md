@@ -61,6 +61,22 @@ AJAX 接口统一返回以下结构：
 
 ## 文章相关
 
+### 保存文章
+
+- `POST /articles/editor`
+- 需要 `ARTICLE_WRITE` 权限
+- 表单参数：
+  - `title`
+  - `content`
+  - `status`：`DRAFT` / `PUBLISHED`
+  - `categoryId`
+  - `newCategory`
+  - `tags`
+
+说明：
+
+- 前台首页、列表、详情、搜索仅返回 `PUBLISHED` 文章
+
 ### 点赞文章
 
 - `POST /articles/{id}/like`
@@ -160,6 +176,44 @@ AJAX 接口统一返回以下结构：
 ### 删除文章
 
 - `POST /admin/articles/{id}/delete`
+
+### 发布文章
+
+- `POST /admin/articles/{id}/publish`
+- 需要 `ARTICLE_MANAGE` 权限
+
+成功响应示例：
+
+```json
+{
+  "ok": true,
+  "code": "SUCCESS",
+  "message": "文章已发布",
+  "data": {
+    "id": 12,
+    "status": "PUBLISHED"
+  }
+}
+```
+
+### 下架文章
+
+- `POST /admin/articles/{id}/offline`
+- 需要 `ARTICLE_MANAGE` 权限
+
+成功响应示例：
+
+```json
+{
+  "ok": true,
+  "code": "SUCCESS",
+  "message": "文章已下架",
+  "data": {
+    "id": 12,
+    "status": "OFFLINE"
+  }
+}
+```
 
 ### 审核评论
 

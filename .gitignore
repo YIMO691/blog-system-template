@@ -55,3 +55,7 @@ logs/
 application-local.yml
 application-local.yaml
 application-local.properties
+application-dev.local.yml
+application-dev.local.yaml
+/config/application-dev.local.yml
+/config/application-dev.local.yaml

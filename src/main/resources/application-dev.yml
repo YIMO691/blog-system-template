@@ -4,10 +4,12 @@ server:
     include-stacktrace: always
 
 spring:
+  config:
+    import: optional:file:./application-dev.local.yml,optional:file:./config/application-dev.local.yml
   datasource:
     url: jdbc:mysql://localhost:3306/blog_db?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: xjliieea691
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -18,8 +20,8 @@ spring:
   mail:
     host: smtp.qq.com
     port: 465
-    username: 2054469475@qq.com
-    password: qregcsizgzzjcbic
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     protocol: smtps
     properties:
       mail:
@@ -33,6 +35,10 @@ spring:
     baseline-on-migrate: true
     baseline-version: 1
     locations: classpath:db/migration
+
+app:
+  flyway:
+    repair-on-startup: ${APP_FLYWAY_REPAIR_ON_STARTUP:false}
 
 logging:
   file:

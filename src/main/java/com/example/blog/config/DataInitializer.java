@@ -8,6 +8,7 @@ import com.example.blog.repository.CategoryRepository;
 import com.example.blog.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,9 @@ public class DataInitializer implements CommandLineRunner {
   private final UserRepository userRepository;
   private final CategoryRepository categoryRepository;
   private final PasswordEncoder passwordEncoder;
+
+  @Value("${app.admin.default-password:admin123456}")
+  private String defaultAdminPassword;
 
   @Override
   public void run(String... args) {
@@ -44,7 +48,7 @@ public class DataInitializer implements CommandLineRunner {
         }, () -> userRepository.save(User.builder()
             .username("admin")
             .nickname("最高管理员")
-            .passwordHash(passwordEncoder.encode("admin123456"))
+            .passwordHash(passwordEncoder.encode(defaultAdminPassword))
             .role(Role.ROLE_ADMIN)
             .superAdmin(true)
             .adminPermissions(AdminPermission.superAdminPermissions())
