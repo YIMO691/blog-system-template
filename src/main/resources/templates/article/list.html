@@ -9,6 +9,7 @@
     body { background-color: #f5f7fa; }
     .card { border: none; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
     .group-title { scroll-margin-top: 80px; }
+    .search-highlight { background: #fff3b0; color: inherit; padding: 0 .15em; border-radius: .2rem; }
   </style>
   <div class="row g-4">
     <!-- 左侧文章列表 -->
@@ -113,10 +114,28 @@
                    class="badge bg-light text-secondary border me-1 fw-normal text-decoration-none"
                    th:text="${t.name}">Tag</a>
               </div>
+              <div class="mb-2" th:if="${keyword != null and keyword != '' and a.searchMatchSources != null and !a.searchMatchSources.isEmpty()}">
+                <span class="text-muted small me-2">命中：</span>
+                <span th:each="source : ${a.searchMatchSources}"
+                      class="badge rounded-pill text-bg-warning me-1 fw-normal"
+                      th:text="${source}">标题</span>
+              </div>
               <h5 class="card-title fw-bold mb-2">
-                <a th:href="@{'/articles/' + ${a.slug}}" class="text-decoration-none text-dark stretched-link article-title" th:text="${a.title}">Title</a>
+                <a th:href="@{'/articles/' + ${a.slug}}"
+                   class="text-decoration-none text-dark stretched-link article-title"
+                   th:if="${keyword != null and keyword != ''}"
+                   th:utext="${a.highlightedTitle}">Title</a>
+                <a th:href="@{'/articles/' + ${a.slug}}"
+                   class="text-decoration-none text-dark stretched-link article-title"
+                   th:unless="${keyword != null and keyword != ''}"
+                   th:text="${a.title}">Title</a>
               </h5>
-              <p class="card-text text-muted text-truncate flex-grow-1 small" th:text="${a.summary}">Content preview...</p>
+              <p class="card-text text-muted text-truncate flex-grow-1 small"
+                 th:if="${keyword != null and keyword != ''}"
+                 th:utext="${a.highlightedSummary}">Content preview...</p>
+              <p class="card-text text-muted text-truncate flex-grow-1 small"
+                 th:unless="${keyword != null and keyword != ''}"
+                 th:text="${a.summary}">Content preview...</p>
               
               <div class="mt-auto pt-3 border-top d-flex justify-content-between text-muted small">
                 <span><i class="bi bi-person me-1"></i><span th:text="${a.author.nickname ?: a.author.username}">Author</span></span>

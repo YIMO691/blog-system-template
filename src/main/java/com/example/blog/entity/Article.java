@@ -72,6 +72,16 @@ public class Article {
   @Transient
   private String summary;
 
+  @Transient
+  @Builder.Default
+  private Set<String> searchMatchSources = new LinkedHashSet<>();
+
+  @Transient
+  private String highlightedTitle;
+
+  @Transient
+  private String highlightedSummary;
+
   @PrePersist
   public void prePersist() {
     Instant now = Instant.now();

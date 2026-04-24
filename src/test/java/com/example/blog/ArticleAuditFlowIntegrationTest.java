@@ -4,8 +4,12 @@ import com.example.blog.common.AdminPermission;
 import com.example.blog.common.ArticleStatus;
 import com.example.blog.common.Role;
 import com.example.blog.entity.Article;
+import com.example.blog.entity.Category;
+import com.example.blog.entity.Tag;
 import com.example.blog.entity.User;
 import com.example.blog.repository.ArticleRepository;
+import com.example.blog.repository.CategoryRepository;
+import com.example.blog.repository.TagRepository;
 import com.example.blog.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +46,12 @@ class ArticleAuditFlowIntegrationTest {
 
   @Autowired
   private UserRepository userRepository;
+
+  @Autowired
+  private TagRepository tagRepository;
+
+  @Autowired
+  private CategoryRepository categoryRepository;
 
   private User normalUser;
   private User admin;
@@ -191,9 +201,80 @@ class ArticleAuditFlowIntegrationTest {
 
     mockMvc.perform(get("/articles/search").param("keyword", keyword))
         .andExpect(status().isOk())
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("published-" + keyword)))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("published-")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString(keyword)))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("<mark class=\"search-highlight\">")))
         .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("draft-" + keyword))))
         .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("offline-" + keyword))));
+  }
+
+  @Test
+  void search_shouldMatchArticleTags() throws Exception {
+    String tagKeyword = "TagSearch-" + UUID.randomUUID();
+    Tag tag = tagRepository.save(Tag.builder().name(tagKeyword.toLowerCase()).build());
+    Article taggedArticle = Article.builder()
+        .title("only-tag-match-" + UUID.randomUUID())
+        .slug("only-tag-match-" + UUID.randomUUID())
+        .content("this article body does not include the search keyword")
+        .author(admin)
+        .status(ArticleStatus.PUBLISHED)
+        .build();
+    taggedArticle.getTags().add(tag);
+    articleRepository.save(taggedArticle);
+
+    mockMvc.perform(get("/articles/search").param("keyword", tagKeyword))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("命中：")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("标签")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString(taggedArticle.getTitle())));
+  }
+
+  @Test
+  void search_shouldMatchArticleCategory() throws Exception {
+    String categoryKeyword = "GlobalCategory-" + UUID.randomUUID();
+    Category category = categoryRepository.save(Category.builder()
+        .name(categoryKeyword)
+        .description("category for global search")
+        .build());
+    Article categorizedArticle = articleRepository.save(Article.builder()
+        .title("only-category-match-" + UUID.randomUUID())
+        .slug("only-category-match-" + UUID.randomUUID())
+        .content("body without category keyword")
+        .author(admin)
+        .category(category)
+        .status(ArticleStatus.PUBLISHED)
+        .build());
+
+    mockMvc.perform(get("/articles/search").param("keyword", categoryKeyword.toLowerCase()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("分类")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString(categorizedArticle.getTitle())));
+  }
+
+  @Test
+  void search_shouldMatchArticleAuthorInfo() throws Exception {
+    String authorKeyword = ("author-" + UUID.randomUUID()).substring(0, 20);
+    User author = userRepository.save(User.builder()
+        .username(authorKeyword)
+        .nickname("nick-" + authorKeyword)
+        .displayName("show-" + authorKeyword)
+        .passwordHash("noop")
+        .role(Role.ROLE_ADMIN)
+        .createdAt(Instant.now())
+        .enabled(true)
+        .build());
+    Article authorMatchedArticle = articleRepository.save(Article.builder()
+        .title("only-author-match-" + UUID.randomUUID())
+        .slug("only-author-match-" + UUID.randomUUID())
+        .content("body without author keyword")
+        .author(author)
+        .status(ArticleStatus.PUBLISHED)
+        .build());
+
+    mockMvc.perform(get("/articles/search").param("keyword", authorKeyword))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("作者")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString(authorMatchedArticle.getTitle())));
   }
 
   @Test
