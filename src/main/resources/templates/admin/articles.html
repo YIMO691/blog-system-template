@@ -11,13 +11,15 @@
   <table class="table table-striped">
     <thead>
     <tr>
-      <th>ID</th><th>标题</th><th>状态</th><th>创建时间</th><th>操作</th>
+      <th>序号</th><th>标题</th><th>状态</th><th>创建时间</th><th>操作</th>
     </tr>
     </thead>
     <tbody>
-    <tr th:each="a : ${page.content}" class="article-row" th:attr="data-article-id=${a.id}">
-      <td th:text="${a.id}"></td>
-      <td th:text="${a.title}"></td>
+    <tr th:each="a, stat : ${page.content}" class="article-row" th:attr="data-article-id=${a.id}">
+      <td th:text="${page.number * page.size + stat.count}"></td>
+      <td>
+        <div th:text="${a.title}"></div>
+      </td>
       <td>
         <span class="badge bg-secondary" th:if="${a.status.name() == 'DRAFT'}">草稿</span>
         <span class="badge bg-success" th:if="${a.status.name() == 'PUBLISHED'}">已发布</span>

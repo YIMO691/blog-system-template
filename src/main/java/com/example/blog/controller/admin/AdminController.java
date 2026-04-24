@@ -9,6 +9,7 @@ import com.example.blog.exception.ForbiddenException;
 import com.example.blog.repository.ArticleRepository;
 import com.example.blog.service.CommentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -235,7 +236,14 @@ public class AdminController {
     if (!canAccess(() -> userService.assertCanManageArticles())) {
       return "redirect:/admin?error=no_permission";
     }
-    model.addAttribute("page", articleRepository.findAll(PageRequest.of(page, 20)));
+    model.addAttribute("page", articleRepository.findAll(PageRequest.of(
+        page,
+        20,
+        Sort.by(
+            Sort.Order.asc("createdAt"),
+            Sort.Order.asc("id")
+        )
+    )));
     return "admin/articles";
   }
 
